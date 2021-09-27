@@ -9,6 +9,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Map.Entry;
 
+import org.apache.log4j.BasicConfigurator;
+
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -18,7 +20,7 @@ import stockfetcher.db.StockDatabase;
 public class Start {
 
 	public static void main(String[] args) {
-
+		
 		// Initialize the Stock Database
 		try {
 			StockDatabase.initialize();
@@ -32,13 +34,17 @@ public class Start {
 		// Fetch the data for a stock
 		JsonObject data = null;
 		try {
-			data = StockApi.dailyAdjusted("IBM", true);
+			data = StockApi.dailyAdjusted("KTFJ", true);
 		} catch (IOException | InterruptedException e) {
 			System.err.println();
 			e.printStackTrace();
 			System.exit(-1);
 		}
-
+		
+		if(data == null) {
+			System.exit(-1);
+		}
+		
 		// Insert data into the database
 		Connection conn = StockDatabase.getConnection();
 		try (

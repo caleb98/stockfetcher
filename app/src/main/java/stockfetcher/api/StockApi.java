@@ -10,12 +10,17 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 public class StockApi {
-
+	
+	private static final Logger logger = LoggerFactory.getLogger(StockApi.class);
+	
 	// API Data
 	private static final String API_KEY = "PXZ12RS30X92UU2U";
 	private static final String API_ROOT = "https://www.alphavantage.co/query?";
@@ -38,6 +43,8 @@ public class StockApi {
 	 * @throws InterruptedException
 	 */
 	public static JsonObject dailyAdjusted(String symbol, boolean full) throws IOException, InterruptedException {
+		logger.info("Requesting {} stock data for {}.", full ? "full" : "compact", symbol);
+		
 		// Setup request parameters
 		HashMap<String, String> params = new HashMap<>();
 		params.put("function", "TIME_SERIES_DAILY_ADJUSTED");
@@ -55,6 +62,15 @@ public class StockApi {
 		// Parse to json object
 		JsonObject data = gson.fromJson(response.body(), JsonObject.class);
 
+		// Check for error
+		if(data.has("Error Message")) {
+			logger.error("Retrieving data for {} failed: {}", symbol, data.get("Error Message").getAsString());
+			return null;
+		}
+		else {
+			logger.info("Data for {} retrieved successfully.", symbol);
+		}
+		
 		return data;
 	}
 	

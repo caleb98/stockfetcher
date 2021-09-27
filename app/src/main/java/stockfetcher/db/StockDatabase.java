@@ -4,10 +4,15 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.mysql.cj.jdbc.MysqlDataSource;
 
 public class StockDatabase {
 
+	private static final Logger logger = LoggerFactory.getLogger(StockDatabase.class);
+	
 	// Database connection info
 	private static final String DB_USERNAME = "stockfetcher";
 	private static final String DB_PASSWORD = "stockfetcher";
@@ -18,6 +23,8 @@ public class StockDatabase {
 	private static Connection conn = null;
 	
 	public static void initialize() throws SQLException {
+		logger.info("Connecting to stock data database...");
+		
 		// Establish the database connection.
 		MysqlDataSource dataSource = new MysqlDataSource();
 		dataSource.setUser(DB_USERNAME);
@@ -28,17 +35,24 @@ public class StockDatabase {
 		dataSource.setCreateDatabaseIfNotExist(true);
 		conn = dataSource.getConnection();
 		
+		logger.info("Connection successful!");
+		
 		// Create database tables if they are not present
 		Statement stmt = conn.createStatement();
-		stmt.execute(
+		boolean isResult;
+		isResult = stmt.execute(
 			"CREATE TABLE IF NOT EXISTS symbols("
 			+ "		symbol_id INT NOT NULL AUTO_INCREMENT,"
 			+ "		symbol VARCHAR(10) NOT NULL UNIQUE,"
 			+ "		PRIMARY KEY (symbol_id)"
 			+ ")"
 		);
+
+		if(!isResult && stmt.getUpdateCount() > 0) {
+			logger.debug("Created symbols table.");
+		}
 		
-		stmt.execute(
+		isResult = stmt.execute(
 			"CREATE TABLE IF NOT EXISTS prices("
 			+ "		price_id INT NOT NULL AUTO_INCREMENT,"
 			+ "		symbol_id INT NOT NULL,"
@@ -56,6 +70,10 @@ public class StockDatabase {
 			+ "		CONSTRAINT unique_price UNIQUE (symbol_id, date)"
 			+ ")"
 		);
+		
+		if(!isResult && stmt.getUpdateCount() > 0) {
+			logger.debug("Created prices table.");
+		}
 	}
 	
 	public static Connection getConnection() {

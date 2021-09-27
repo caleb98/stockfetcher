@@ -8,6 +8,7 @@ build
 # Project specific excludes
 #
 
+bin
 tomcat
 
 #

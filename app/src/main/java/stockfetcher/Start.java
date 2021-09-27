@@ -11,6 +11,8 @@ import java.util.Map.Entry;
 
 import org.apache.log4j.BasicConfigurator;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -31,10 +33,23 @@ public class Start {
 			System.exit(-1);
 		}
 
+		JsonObject companyData = null;
+		try {
+			companyData = StockApi.companyOverview("CRSR");
+			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			System.out.println(gson.toJson(companyData));
+		} catch (IOException | InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		
+		System.exit(0);
+		
 		// Fetch the data for a stock
 		JsonObject data = null;
 		try {
-			data = StockApi.dailyAdjusted("KTFJ", true);
+			data = StockApi.dailyAdjusted("CRSR", true);
 		} catch (IOException | InterruptedException e) {
 			System.err.println();
 			e.printStackTrace();

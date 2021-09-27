@@ -38,7 +38,7 @@ public class StockApi {
 	 * Returns the daily adjusted stock values for a given stock.
 	 * @param symbol the stock ticker
 	 * @param full whether or not to retrieve full history or only last 100 data points
-	 * @return JsonObject representing the stock data
+	 * @return JsonObject representing the stock data; null if api error occurred
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
@@ -74,6 +74,32 @@ public class StockApi {
 		return data;
 	}
 	
+	public static JsonObject companyOverview(String symbol) throws IOException, InterruptedException {
+		logger.info("Requesting {} company info.", symbol);
+		
+		// Setup request parameters
+		HashMap<String, String> params = new HashMap<>();
+		params.put("function", "OVERVIEW");
+		params.put("symbol", symbol);
+		params.put("apikey", API_KEY);
+		
+		// Make the request
+		HttpRequest request = getRequest(params);
+		HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
+		
+		// Parse to json object
+		JsonObject data = gson.fromJson(response.body(), JsonObject.class);
+		
+		// Check for error (this call returns empty object on error)
+		if(data.entrySet().size() == 0) {
+			logger.error("Retrieving company data for {} failed. Requested symbol likely does not exist.", symbol);
+		}
+		else {
+			logger.info("Company info for {} retrieved successfully.", symbol);
+		}
+		
+		return data;
+	}
 	
 	/**
 	 * Helper method for converting a GET parameters map into

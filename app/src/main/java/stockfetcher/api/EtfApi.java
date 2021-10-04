@@ -42,7 +42,7 @@ public class EtfApi {
 		}
 		
 		// Build csv fetch url
-		String etf = "GLD";		
+		String etf = symbol;		
 		String url = String.format(
 				"https://query1.finance.yahoo.com/v7/finance/download/%s?period1=%d&period2=%d&interval=1d&events=history&includeAdjustedClose=true", 
 				etf,
@@ -60,14 +60,19 @@ public class EtfApi {
 			while((line = reader.readLine()) != null) {
 				String[] data = line.split(",");
 				String date = data[0];
-				double open = Double.valueOf(data[1]);
-				double high = Double.valueOf(data[2]);
-				double low = Double.valueOf(data[3]);
-				double close = Double.valueOf(data[4]);
-				double adjClose = Double.valueOf(data[5]);
-				int volume = Integer.valueOf(data[6]);
 				
-				priceData.add(new PriceData(symbol, LocalDate.parse(date), open, high, low, close, adjClose, volume));
+				try {
+					double open = Double.valueOf(data[1]);
+					double high = Double.valueOf(data[2]);
+					double low = Double.valueOf(data[3]);
+					double close = Double.valueOf(data[4]);
+					double adjClose = Double.valueOf(data[5]);
+					int volume = Integer.valueOf(data[6]);
+				
+					priceData.add(new PriceData(symbol, LocalDate.parse(date), open, high, low, close, adjClose, volume));
+				} catch (NumberFormatException e) {
+					logger.warn("Unable to add {} ETF data for date {}: {}", symbol, date, e.getMessage());
+				}
 			}
 			
 			logger.info("ETF data for {} successfully downloaded.", symbol);

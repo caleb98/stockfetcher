@@ -6,18 +6,30 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.text.DateFormat;
 import java.time.Duration;
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-public class StockApi {
+/**
+ * API for retrieving company stock data. 
+ * Implemented using the AlphaVantage api:
+ * https://www.alphavantage.co/
+ * 
+ * @author Caleb Cassady
+ */
+public final class StockApi {
 	
 	private static final Logger logger = LoggerFactory.getLogger(StockApi.class);
 	
@@ -34,6 +46,8 @@ public class StockApi {
 			.connectTimeout(Duration.ofSeconds(20))
 			.build();
 	
+	private StockApi() {}
+	
 	/**
 	 * Returns the daily adjusted stock values for a given stock.
 	 * @param symbol the stock ticker
@@ -42,7 +56,7 @@ public class StockApi {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	public static JsonObject dailyAdjusted(String symbol, boolean full) throws IOException, InterruptedException {
+	public static PriceData[] dailyAdjusted(String symbol, boolean full) {
 		logger.info("Requesting {} stock data for {}.", full ? "full" : "compact", symbol);
 		
 		// Setup request parameters
@@ -57,7 +71,13 @@ public class StockApi {
 		
 		// Make the request
 		HttpRequest request = getRequest(params);
-		HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
+		HttpResponse<String> response;
+		try {
+			response = client.send(request, BodyHandlers.ofString());
+		} catch (IOException | InterruptedException e) {
+			logger.error("Retrieving data for {} failed: {}", symbol, e.getMessage());
+			return null;
+		}
 		
 		// Parse to json object
 		JsonObject data = gson.fromJson(response.body(), JsonObject.class);
@@ -68,13 +88,33 @@ public class StockApi {
 			return null;
 		}
 		else {
-			logger.info("Data for {} retrieved successfully.", symbol);
+			logger.info("Stock data for {} retrieved successfully.", symbol);
 		}
 		
-		return data;
+		// Pull price data from Json
+		data = data.get("Time Series (Daily)").getAsJsonObject();
+		PriceData[] priceData = new PriceData[data.entrySet().size()];
+		int index = 0;
+		for(Entry<String, JsonElement> entry : data.entrySet()) {
+			LocalDate date = LocalDate.parse(entry.getKey());
+			
+			JsonObject dataObj = entry.getValue().getAsJsonObject();
+			double open = dataObj.get("1. open").getAsDouble();
+			double high = dataObj.get("2. high").getAsDouble();
+			double low = dataObj.get("3. low").getAsDouble();
+			double close = dataObj.get("4. close").getAsDouble();
+			double adjClose = dataObj.get("5. adjusted close").getAsDouble();
+			int volume = dataObj.get("6. volume").getAsInt();
+			
+			priceData[index] = new PriceData(symbol, date, open, high, low, close, adjClose, volume);
+			
+			index++;
+		}
+		
+		return priceData;
 	}
 	
-	public static JsonObject companyOverview(String symbol) throws IOException, InterruptedException {
+	public static CompanyData companyOverview(String symbol) throws IOException, InterruptedException {
 		logger.info("Requesting {} company info.", symbol);
 		
 		// Setup request parameters
@@ -98,7 +138,15 @@ public class StockApi {
 			logger.info("Company info for {} retrieved successfully.", symbol);
 		}
 		
-		return data;
+		// Pull company data from Json
+		String name = data.get("Name").getAsString();
+		String desc = data.get("Description").getAsString();
+		double peRatio = data.get("PERatio").getAsDouble();
+		long sharesOutstanding = data.get("SharesOutstanding").getAsLong();
+		long sharesFloat = data.get("SharesFloat").getAsLong();
+		long sharesShort = data.get("SharesShort").getAsLong();
+		
+		return new CompanyData(symbol, name, desc, peRatio, sharesOutstanding, sharesFloat, sharesShort);
 	}
 	
 	/**

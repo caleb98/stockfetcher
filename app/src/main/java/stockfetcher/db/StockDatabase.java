@@ -55,7 +55,7 @@ public final class StockDatabase {
 		stmt.execute(
 			"CREATE TABLE IF NOT EXISTS symbols("
 			+ "		symbol_id INT NOT NULL AUTO_INCREMENT,"
-			+ "		symbol VARCHAR(10) NOT NULL UNIQUE,"
+			+ "		symbol VARCHAR(50) NOT NULL UNIQUE,"
 			+ "		PRIMARY KEY (symbol_id)"
 			+ ")"
 		);

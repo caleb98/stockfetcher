@@ -15,7 +15,6 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
@@ -27,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 /**
@@ -41,7 +39,7 @@ public final class StockApi {
 	
 	private static final Logger logger = LoggerFactory.getLogger(StockApi.class);
 	
-	// API Data
+	// Alphavantage API data
 	private static final String API_KEY = "PXZ12RS30X92UU2U";
 	private static final String API_ROOT = "https://www.alphavantage.co/query?";
 	
@@ -57,77 +55,13 @@ public final class StockApi {
 	private StockApi() {}
 	
 	/**
-	 * Returns the daily adjusted stock values for a given company stock.
-	 * @param symbol the stock ticker
-	 * @param full whether or not to retrieve full history or only last 100 data points
-	 * @return JsonObject representing the stock data; null if api error occurred
-	 */
-	public static PriceData[] dailyAdjustedCompany(String symbol, boolean full) {
-		logger.info("Requesting {} stock data for {}.", full ? "full" : "compact", symbol);
-		
-		// Setup request parameters
-		HashMap<String, String> params = new HashMap<>();
-		params.put("function", "TIME_SERIES_DAILY_ADJUSTED");
-		params.put("symbol", symbol);
-		params.put("apikey", API_KEY);
-		
-		if(full) {
-			params.put("outputsize", "full");
-		}
-		
-		// Make the request
-		HttpRequest request = getRequest(params);
-		HttpResponse<String> response;
-		try {
-			response = client.send(request, BodyHandlers.ofString());
-		} catch (IOException | InterruptedException e) {
-			logger.error("Retrieving data for {} failed: {}", symbol, e.getMessage());
-			return null;
-		}
-		
-		// Parse to json object
-		JsonObject data = gson.fromJson(response.body(), JsonObject.class);
-
-		// Check for error
-		if(data.has("Error Message")) {
-			logger.error("Retrieving data for {} failed: {}", symbol, data.get("Error Message").getAsString());
-			return null;
-		}
-		else {
-			logger.info("Stock data for {} retrieved successfully.", symbol);
-		}
-		
-		// Pull price data from Json
-		data = data.get("Time Series (Daily)").getAsJsonObject();
-		PriceData[] priceData = new PriceData[data.entrySet().size()];
-		int index = 0;
-		for(Entry<String, JsonElement> entry : data.entrySet()) {
-			LocalDate date = LocalDate.parse(entry.getKey());
-			
-			JsonObject dataObj = entry.getValue().getAsJsonObject();
-			double open = dataObj.get("1. open").getAsDouble();
-			double high = dataObj.get("2. high").getAsDouble();
-			double low = dataObj.get("3. low").getAsDouble();
-			double close = dataObj.get("4. close").getAsDouble();
-			double adjClose = dataObj.get("5. adjusted close").getAsDouble();
-			int volume = dataObj.get("6. volume").getAsInt();
-			
-			priceData[index] = new PriceData(symbol, date, open, high, low, close, adjClose, volume);
-			
-			index++;
-		}
-		
-		return priceData;
-	}
-	
-	/**
-	 * Returns the daily adjusted price data for a given etf.
-	 * @param symbol etf symbol
+	 * Returns the daily adjusted price data for a given stock.
+	 * @param symbol stock symbol
 	 * @param full true to fetch all existing data; false for last 100 data points
 	 * @return 
 	 */
-	public static PriceData[] dailyAdjustedEtf(String symbol, boolean full) {
-		logger.info("Requesting {} ETF data for {}.", full ? "full" : "compact", symbol);
+	public static PriceData[] getStockPriceData(String symbol, boolean full) {
+		logger.info("Requesting {} data for {}.", full ? "full" : "compact", symbol);
 		
 		long period1;
 		long period2;
@@ -173,18 +107,23 @@ public final class StockApi {
 				
 					priceData.add(new PriceData(symbol, LocalDate.parse(date), open, high, low, close, adjClose, volume));
 				} catch (NumberFormatException e) {
-					logger.warn("Unable to add {} ETF data for date {}: {}", symbol, date, e.getMessage());
+					logger.warn("Unable to add {} data for date {}: {}", symbol, date, e.getMessage());
 				}
 			}
 			
-			logger.info("ETF data for {} successfully downloaded.", symbol);
+			logger.info("Stock data for {} successfully downloaded.", symbol);
 			return priceData.toArray(new PriceData[priceData.size()]);
 		} catch (IOException e) {
-			logger.error("Error retrieving ETF data for {}: {}", symbol, e.getMessage());
+			logger.error("Error retrieving data for {}: {}", symbol, e.getMessage());
 			return null;
 		}
 	}
 	
+	/**
+	 * Returns an overview for the ETF of the given symbol
+	 * @param symbol
+	 * @return etf data; null if error or if symbol isn't an etf
+	 */
 	public static EtfData getEtfOverview(String symbol) {
 		logger.info("Requesting ETF overview for {}", symbol);
 		// Make a request to marketwatch holdings page
@@ -192,10 +131,17 @@ public final class StockApi {
 		Document doc;
 		try {
 			Connection conn = Jsoup.connect(url);
-			conn.userAgent("Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36");
 			doc = conn.get();
 		} catch (IOException e) {
 			logger.error("Error fetching {} ETF data: {}", symbol, e.getMessage());
+			return null;
+		}
+		
+		// Check that the document url is equal to the url we requested
+		// If they aren't equal, we got redirected because the symbol
+		// wasn't an etf
+		if(!url.equals(doc.baseUri())) {
+			logger.error("The symbol {} does not correspond to an ETF.", symbol);
 			return null;
 		}
 		
@@ -206,19 +152,27 @@ public final class StockApi {
 		EtfData data = new EtfData(symbol, etfName);
 		
 		// Pull sector data
-		Elements sectors = doc.getElementsByAttributeValue("aria-label", "sector allocation data table").get(0).select(".table__row");
-		for(Element sector : sectors) {
-			String sectorName = sector.child(0).text();
-			double percent = Double.valueOf(sector.child(1).text().replace("%", ""));
-			data.sectorWeightings.put(sectorName, percent);
+		try {
+			Elements sectors = doc.getElementsByAttributeValue("aria-label", "sector allocation data table").get(0).select(".table__row");
+			for(Element sector : sectors) {
+				String sectorName = sector.child(0).text();
+				double percent = Double.valueOf(sector.child(1).text().replace("%", ""));
+				data.sectorWeightings.put(sectorName, percent);
+			}
+		} catch (IndexOutOfBoundsException e) {
+			logger.warn("Unable to get sector data for {}", etfName);
 		}
 		
 		// Pull top holding data
-		Elements holdings = doc.select(".element.element--table.holdings").get(0).child(1).child(1).select(".table__row");
-		for(Element holding : holdings) {
-			String hSymbol = holding.child(1).text();
-			double percent = Double.valueOf(holding.child(2).text().replace("%", ""));
-			data.topHoldings.put(hSymbol, percent);
+		try {
+			Elements holdings = doc.select(".element.element--table.holdings").get(0).child(1).child(1).select(".table__row");
+			for(Element holding : holdings) {
+				String hSymbol = holding.child(1).text();
+				double percent = Double.valueOf(holding.child(2).text().replace("%", ""));
+				data.topHoldings.put(hSymbol, percent);
+			}
+		} catch (IndexOutOfBoundsException e) {
+			logger.warn("Unable to get holding data for {}", etfName);
 		}
 		
 		logger.info("ETF overview for {} ({}) retrieved successfully.", etfName, symbol);
@@ -281,7 +235,9 @@ public final class StockApi {
 	 * @throws InterruptedException
 	 */
 	public static boolean isSymbolCompany(String symbol) throws IOException, InterruptedException {
-		logger.info("Checking if {} is a company stock symbol.", symbol);
+		// Symbols starting with ^ are indexes, so skip these
+		if(symbol.startsWith("^"))
+			return false;
 		
 		// Setup request parameters
 		HashMap<String, String> params = new HashMap<>();
@@ -298,6 +254,27 @@ public final class StockApi {
 		
 		// If the object is not empty, then it is a company
 		return data.entrySet().size() != 0;
+	}
+	
+	/**
+	 * Checks if a given symbol represents an ETF.
+	 * @param symbol
+	 * @return
+	 * @throws IOException 
+	 */
+	public static boolean isSymbolETF(String symbol) throws IOException {
+		// Symbols starting with ^ are indexes, so skip these
+		if(symbol.startsWith("^"))
+			return false;
+		
+		// Make a request to marketwatch holdings page
+		String url = String.format("https://www.marketwatch.com/investing/fund/%s/holdings", symbol.toLowerCase());
+		Document doc = Jsoup.connect(url).get();
+		
+		// Check that the document url is equal to the url we requested
+		// If they aren't equal, we got redirected because the symbol
+		// wasn't an etf (this is a jank way to do this but it works.)
+		return url.equals(doc.baseUri());
 	}
 	
 	/**

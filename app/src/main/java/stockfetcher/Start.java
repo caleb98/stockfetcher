@@ -1,5 +1,6 @@
 package stockfetcher;
 
+import java.io.IOException;
 import java.sql.SQLException;
 
 import stockfetcher.api.CompanyData;
@@ -9,7 +10,7 @@ import stockfetcher.api.StockApi;
 import stockfetcher.db.StockDatabase;
 
 public class Start {
-
+	
 	public static void main(String[] args) {
 		
 		// Initialize the Stock Database
@@ -22,14 +23,33 @@ public class Start {
 			System.exit(-1);
 		}
 		
-		fetchCompanyStockData("CRSR");
-		fetchEtfData("VOO");
+		fetchData("CRSR");
+		fetchData("VOO");
+		fetchData("GLD");
+		fetchData("^TNX");
 		
+	}
+	
+	public static boolean fetchData(String symbol) {
+		try {
+			if(StockApi.isSymbolCompany(symbol)) {
+				return fetchCompanyStockData(symbol);
+			}
+			else if(StockApi.isSymbolETF(symbol)) {
+				return fetchEtfData(symbol);
+			}
+			else {
+				System.out.println("Given symbol " + symbol + " is not of a supported type. Only company stocks and ETFs are supported.");
+				return false;
+			}
+		} catch(IOException | InterruptedException e) {
+			return false;
+		}
 	}
 	
 	public static boolean fetchEtfData(String symbol) {
 		// Fetch etf price data
-		PriceData[] data = StockApi.dailyAdjustedEtf(symbol, true);
+		PriceData[] data = StockApi.getStockPriceData(symbol, true);
 		
 		// Check that symbol was valid
 		if(data == null) {
@@ -52,7 +72,7 @@ public class Start {
 	
 	public static boolean fetchCompanyStockData(String symbol) {
 		// Fetch the data for a stock
-		PriceData[] data = StockApi.dailyAdjustedCompany(symbol, true);
+		PriceData[] data = StockApi.getStockPriceData(symbol, true);
 		
 		// Make sure that the symbol was valid
 		if(data == null) {

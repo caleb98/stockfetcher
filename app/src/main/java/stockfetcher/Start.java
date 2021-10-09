@@ -3,6 +3,7 @@ package stockfetcher;
 import java.sql.SQLException;
 
 import stockfetcher.api.CompanyData;
+import stockfetcher.api.EtfData;
 import stockfetcher.api.PriceData;
 import stockfetcher.api.StockApi;
 import stockfetcher.db.StockDatabase;
@@ -10,6 +11,25 @@ import stockfetcher.db.StockDatabase;
 public class Start {
 
 	public static void main(String[] args) {
+		
+		EtfData data = StockApi.etfData("VOO");
+		System.out.println("Sectors");
+		for(String sector : data.sectorWeightings.keySet()) {
+			System.out.printf(
+				"\t%s: %.2f%%\n",
+				sector,
+				data.sectorWeightings.get(sector)
+			);
+		}
+		System.out.println("Holdings");
+		for(String holding : data.topHoldings.keySet()) {
+			System.out.printf(
+				"\t%s: %.2f%%\n",
+				holding,
+				data.topHoldings.get(holding)
+			);
+		}
+		System.exit(0);
 		
 		String symbol = "^TNX";
 		

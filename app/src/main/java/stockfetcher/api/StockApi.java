@@ -17,6 +17,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.jsoup.Connection;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -176,9 +181,43 @@ public final class StockApi {
 			return priceData.toArray(new PriceData[priceData.size()]);
 		} catch (IOException e) {
 			logger.error("Error retrieving ETF data for {}: {}", symbol, e.getMessage());
+			return null;
 		}
+	}
 	
-		return null;
+	public static EtfData etfData(String symbol) {
+		// Make a request to yahoo finance page
+		String url = String.format("https://www.marketwatch.com/investing/fund/%s/holdings", symbol.toLowerCase());
+		Document doc;
+		try {
+			Connection conn = Jsoup.connect(url);
+			conn.userAgent("Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36");
+			doc = conn.get();
+		} catch (IOException e) {
+			logger.error("Error fetching {} ETF data: {}", symbol, e.getMessage());
+			return null;
+		}
+		
+		// Create data object
+		EtfData data = new EtfData(symbol);
+		
+		// Pull sector data
+		Elements sectors = doc.getElementsByAttributeValue("aria-label", "sector allocation data table").get(0).select(".table__row");
+		for(Element sector : sectors) {
+			String sectorName = sector.child(0).html();
+			double percent = Double.valueOf(sector.child(1).html().replace("%", ""));
+			data.sectorWeightings.put(sectorName, percent);
+		}
+		
+		// Pull top holding data
+		Elements holdings = doc.select(".element.element--table.holdings").get(0).child(1).child(1).select(".table__row");
+		for(Element holding : holdings) {
+			String hSymbol = holding.child(1).html();
+			double percent = Double.valueOf(holding.child(2).html().replace("%", ""));
+			data.topHoldings.put(hSymbol, percent);
+		}
+		
+		return data;
 	}
 	
 	/**

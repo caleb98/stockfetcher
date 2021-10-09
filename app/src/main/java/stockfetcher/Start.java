@@ -12,27 +12,6 @@ public class Start {
 
 	public static void main(String[] args) {
 		
-		EtfData data = StockApi.etfData("VOO");
-		System.out.println("Sectors");
-		for(String sector : data.sectorWeightings.keySet()) {
-			System.out.printf(
-				"\t%s: %.2f%%\n",
-				sector,
-				data.sectorWeightings.get(sector)
-			);
-		}
-		System.out.println("Holdings");
-		for(String holding : data.topHoldings.keySet()) {
-			System.out.printf(
-				"\t%s: %.2f%%\n",
-				holding,
-				data.topHoldings.get(holding)
-			);
-		}
-		System.exit(0);
-		
-		String symbol = "^TNX";
-		
 		// Initialize the Stock Database
 		try {
 			StockDatabase.initialize();
@@ -44,12 +23,31 @@ public class Start {
 		}
 		
 		fetchCompanyStockData("CRSR");
+		fetchEtfData("VOO");
 		
-		PriceData[] etf = StockApi.dailyAdjustedEtf(symbol, true);
-		if(etf != null) {
-			StockDatabase.addPriceData(etf);			
+	}
+	
+	public static boolean fetchEtfData(String symbol) {
+		// Fetch etf price data
+		PriceData[] data = StockApi.dailyAdjustedEtf(symbol, true);
+		
+		// Check that symbol was valid
+		if(data == null) {
+			return false;
 		}
 		
+		// Add the prices
+		StockDatabase.addPriceData(data);
+		
+		// If etf data isn't present, fetch that too
+		if(!StockDatabase.isEtfPresent(symbol)) {
+			EtfData etfData = StockApi.getEtfOverview(symbol);
+			if(etfData != null) {
+				StockDatabase.addEtfData(etfData);
+			}
+		}
+		
+		return true;
 	}
 	
 	public static boolean fetchCompanyStockData(String symbol) {
@@ -66,7 +64,7 @@ public class Start {
 		
 		// If company data isn't present, fetch that too
 		if(!StockDatabase.isCompanyPresent(symbol)) {
-			CompanyData companyData = StockApi.companyOverview(symbol);
+			CompanyData companyData = StockApi.getCompanyOverview(symbol);
 			if(companyData != null) {
 				StockDatabase.addCompanyData(companyData);
 			}

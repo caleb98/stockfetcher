@@ -32,8 +32,8 @@ import com.google.gson.JsonObject;
 
 /**
  * API for retrieving company stock data. 
- * Implemented using the AlphaVantage api 
- * and Yahoo Finance.
+ * Implemented using the AlphaVantage api, 
+ * Yahoo Finance, and marketwatch.com
  * 
  * @author Caleb Cassady
  */
@@ -185,8 +185,9 @@ public final class StockApi {
 		}
 	}
 	
-	public static EtfData etfData(String symbol) {
-		// Make a request to yahoo finance page
+	public static EtfData getEtfOverview(String symbol) {
+		logger.info("Requesting ETF overview for {}", symbol);
+		// Make a request to marketwatch holdings page
 		String url = String.format("https://www.marketwatch.com/investing/fund/%s/holdings", symbol.toLowerCase());
 		Document doc;
 		try {
@@ -198,24 +199,29 @@ public final class StockApi {
 			return null;
 		}
 		
+		// Grab ETF name
+		String etfName = doc.select(".company__name").get(0).text();
+		
 		// Create data object
-		EtfData data = new EtfData(symbol);
+		EtfData data = new EtfData(symbol, etfName);
 		
 		// Pull sector data
 		Elements sectors = doc.getElementsByAttributeValue("aria-label", "sector allocation data table").get(0).select(".table__row");
 		for(Element sector : sectors) {
-			String sectorName = sector.child(0).html();
-			double percent = Double.valueOf(sector.child(1).html().replace("%", ""));
+			String sectorName = sector.child(0).text();
+			double percent = Double.valueOf(sector.child(1).text().replace("%", ""));
 			data.sectorWeightings.put(sectorName, percent);
 		}
 		
 		// Pull top holding data
 		Elements holdings = doc.select(".element.element--table.holdings").get(0).child(1).child(1).select(".table__row");
 		for(Element holding : holdings) {
-			String hSymbol = holding.child(1).html();
-			double percent = Double.valueOf(holding.child(2).html().replace("%", ""));
+			String hSymbol = holding.child(1).text();
+			double percent = Double.valueOf(holding.child(2).text().replace("%", ""));
 			data.topHoldings.put(hSymbol, percent);
 		}
+		
+		logger.info("ETF overview for {} ({}) retrieved successfully.", etfName, symbol);
 		
 		return data;
 	}
@@ -225,7 +231,7 @@ public final class StockApi {
 	 * @param symbol
 	 * @return company data; null if symbol does not represent a company
 	 */
-	public static CompanyData companyOverview(String symbol) {
+	public static CompanyData getCompanyOverview(String symbol) {
 		logger.info("Requesting {} company info.", symbol);
 		
 		// Setup request parameters
@@ -250,6 +256,7 @@ public final class StockApi {
 		// Check for error (this call returns empty object on error)
 		if(data.entrySet().size() == 0) {
 			logger.error("Retrieving company data for {} failed. Requested symbol likely does not exist.", symbol);
+			return null;
 		}
 		else {
 			logger.info("Company info for {} retrieved successfully.", symbol);

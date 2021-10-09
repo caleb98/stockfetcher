@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import com.mysql.cj.jdbc.MysqlDataSource;
 
 import stockfetcher.api.CompanyData;
+import stockfetcher.api.EtfData;
 import stockfetcher.api.PriceData;
 
 public final class StockDatabase {
@@ -31,6 +32,7 @@ public final class StockDatabase {
 	
 	private static final HashMap<String, Integer> symbolIdMap = new HashMap<>();
 	private static final HashMap<String, Integer> companyIdMap = new HashMap<>();
+	private static final HashMap<String, Integer> etfIdMap = new HashMap<>();
 	
 	private StockDatabase() {}
 	
@@ -76,8 +78,28 @@ public final class StockDatabase {
 		);
 		
 		stmt.execute(
+			"CREATE TABLE IF NOT EXISTS etfs("
+			+ "		etf_id INT NOT NULL AUTO_INCREMENT,"
+			+ "		symbol_id INT NOT NULL UNIQUE,"
+			+ "		etf_name VARCHAR(100),"
+			+ "		PRIMARY KEY (etf_id),"
+			+ "		FOREIGN KEY (symbol_id) REFERENCES symbols(symbol_id)"
+			+ ")"
+		);
+		
+		stmt.execute(
+			"CREATE TABLE IF NOT EXISTS etf_holdings("
+			+ "		etf_id INT NOT NULL,"
+			+ "		symbol_id INT NOT NULL,"
+			+ "		percent DECIMAL(5, 2),"
+			+ "		CONSTRAINT pk_holding PRIMARY KEY (etf_id, symbol_id),"
+			+ "		FOREIGN KEY (etf_id) REFERENCES etfs(etf_id),"
+			+ "		FOREIGN KEY (symbol_id) REFERENCES symbols(symbol_id)"
+			+ ")"
+		);
+		
+		stmt.execute(
 			"CREATE TABLE IF NOT EXISTS prices("
-			+ "		price_id INT NOT NULL AUTO_INCREMENT,"
 			+ "		symbol_id INT NOT NULL,"
 			+ "		date DATE NOT NULL,"
 			+ "		open DECIMAL(13, 4) NOT NULL,"
@@ -86,9 +108,8 @@ public final class StockDatabase {
 			+ "		close DECIMAL(13, 4) NOT NULL,"
 			+ "		adjusted_close DECIMAL(13, 4) NOT NULL,"
 			+ "		volume INT NOT NULL,"
-			+ "		PRIMARY KEY (price_id),"
-			+ "		FOREIGN KEY (symbol_id) REFERENCES symbols(symbol_id),"
-			+ "		CONSTRAINT unique_price UNIQUE (symbol_id, date)"
+			+ "		CONSTRAINT pk_price PRIMARY KEY (symbol_id, date),"
+			+ "		FOREIGN KEY (symbol_id) REFERENCES symbols(symbol_id)"
 			+ ")"
 		);
 		
@@ -163,13 +184,17 @@ public final class StockDatabase {
 		
 		String sql = String.format("SELECT company_id FROM companies WHERE symbol_id = %d", symbolId);
 		int companyId = -1;
-		try {
+		try (
 			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
+		) {
 			if(rs.isBeforeFirst()) {
 				rs.next();
 				companyId = rs.getInt("company_id");
 				companyIdMap.put(symbol, companyId);
+			}
+			else {
+				logger.error("Unable to get company id for symbol {}: no company found for that symbol.", symbol);
 			}
 		} catch (SQLException e) {
 			logger.error("Unable to get company id for symbol {}: {}.", symbol, e.getMessage());
@@ -185,10 +210,10 @@ public final class StockDatabase {
 	 */
 	public static boolean isCompanyPresent(String symbol) {
 		String sql = String.format("SELECT * FROM companies WHERE symbol_id = %d", getSymbolId(symbol));
-		Statement stmt;
-		try {
-			stmt = conn.createStatement();
+		try (
+			Statement stmt = conn.createStatement();
 			ResultSet rs = stmt.executeQuery(sql);
+		) {
 			return rs.isBeforeFirst();
 		} catch (SQLException e) {
 			logger.error("Error checking company present in db: {}", e.getMessage());
@@ -197,11 +222,12 @@ public final class StockDatabase {
 	}
 	
 	public static void addCompanyData(CompanyData company) {
-		String sql = "INSERT INTO\n"
-				+ "	companies (symbol_id, name, description, pe_ratio, shares_outstanding, shares_float, shares_short)\n"
-				+ "VALUES\n"
-				+ "	(?, ?, ?, ?, ?, ?, ?)\n"
-				+ "ON DUPLICATE KEY UPDATE\n"
+		logger.info("Inserting company data for {} ({})", company.name, company.symbol);
+		String sql = "INSERT INTO"
+				+ "	companies (symbol_id, name, description, pe_ratio, shares_outstanding, shares_float, shares_short)"
+				+ "VALUES"
+				+ "	(?, ?, ?, ?, ?, ?, ?)"
+				+ "ON DUPLICATE KEY UPDATE"
 				+ "	symbol_id = VALUES(symbol_id),"
 				+ "	name = VALUES(name),"
 				+ "	description = VALUES(description),"
@@ -221,13 +247,113 @@ public final class StockDatabase {
 			prep.setLong(6, company.sharesFloat);
 			prep.setLong(7, company.sharesShort);
 			prep.execute();
-			prep.close();
 		} catch (SQLException e) {
 			logger.error("Error while attempting to insert price data: {}", e.getMessage());
 		}
 	}
 	
+	public static int getEtfId(String symbol) {
+		if(etfIdMap.containsKey(symbol)) {
+			return etfIdMap.get(symbol);
+		}
+		
+		int symbolId = getSymbolId(symbol);
+		if(symbolId == -1) {
+			return -1;
+		}
+		
+		String sql = String.format("SELECT etf_id FROM etfs WHERE symbol_id = %d", symbolId);
+		int etfId = -1;
+		try {
+			Statement stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(sql);
+			if(rs.isBeforeFirst()) {
+				rs.next();
+				etfId = rs.getInt("etf_id");
+				etfIdMap.put(symbol, etfId);
+			}
+			else {
+				logger.error("Unable to get etf id for symbol {}: no etf found for that symbol.", symbol);
+			}
+		} catch (SQLException e) {
+			logger.error("Unable to get etf id for symbol {}: {}", symbol, e.getMessage());
+		}
+		
+		return etfId;
+	}
+	
+	public static boolean isEtfPresent(String symbol) {
+		String sql = String.format("SELECT * FROM etfs WHERE symbol_id = %d", getSymbolId(symbol));
+		try (
+			Statement stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(sql);
+		) {
+			return rs.isBeforeFirst();
+		} catch (SQLException e) {
+			logger.error("Error checking etf present in db: {}", e.getMessage());
+			return false;
+		}
+	}
+	
+	public static void addEtfData(EtfData etf) {
+		logger.info("Adding etf data for {} ({})", etf.name, etf.symbol);
+		// Add to etfs table first
+		String sql = "INSERT INTO"
+				+ "	etfs (symbol_id, etf_name)"
+				+ "VALUES"
+				+ "	(?, ?)"
+				+ "ON DUPLICATE KEY UPDATE"
+				+ "	symbol_id = VALUES(symbol_id),"
+				+ "	etf_name = VALUES(etf_name)";
+		
+		try (
+			PreparedStatement prep = conn.prepareStatement(sql);
+		) {
+			prep.setInt(1, getSymbolId(etf.symbol));
+			prep.setString(2, etf.name);
+			prep.execute();
+		} catch (SQLException e) {
+			logger.error("Error while attempting to insert etf data: {}", e.getMessage());
+		}
+		
+		// Now, add holding info
+		int etfId = getEtfId(etf.symbol);
+		sql = "INSERT INTO"
+				+ "	etf_holdings (etf_id, symbol_id, percent)"
+				+ "VALUES"
+				+ "	(?, ?, ?)";
+	
+		String addSymbol = "INSERT INTO symbols(symbol) VALUES (?)";
+	
+		try (
+			PreparedStatement prep = conn.prepareStatement(sql);
+			PreparedStatement addSymbolPrep = conn.prepareStatement(addSymbol);
+		) {
+			
+			for(String holdingSymbol : etf.topHoldings.keySet()) {
+				int symbolId = getSymbolId(holdingSymbol);
+				
+				if(symbolId == -1) {
+					addSymbolPrep.setString(1, holdingSymbol);
+					addSymbolPrep.execute();
+					symbolId = getSymbolId(holdingSymbol);
+				}
+				
+				prep.setInt(1, etfId);
+				prep.setInt(2, symbolId);
+				prep.setDouble(3, etf.topHoldings.get(holdingSymbol));
+				prep.addBatch();
+			}
+			
+			prep.executeBatch();
+			
+		} catch (SQLException e) {
+			logger.error("Error while updating etf holdings for {}: {}", etf.name, e.getMessage());
+		}
+	}
+	
 	public static void addPriceData(PriceData[] data) {
+		logger.info("Inserting new price data ({} entries)", data.length);
 		// Setup the prepared statement for insertion
 		String sql = "INSERT INTO\n"
 					+ "	prices (symbol_id, date, open, high, low, close, adjusted_close, volume)\n"

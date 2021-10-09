@@ -1,15 +1,18 @@
 package stockfetcher.api;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
-import java.text.DateFormat;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.Date;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -24,8 +27,8 @@ import com.google.gson.JsonObject;
 
 /**
  * API for retrieving company stock data. 
- * Implemented using the AlphaVantage api:
- * https://www.alphavantage.co/
+ * Implemented using the AlphaVantage api 
+ * and Yahoo Finance.
  * 
  * @author Caleb Cassady
  */
@@ -49,14 +52,12 @@ public final class StockApi {
 	private StockApi() {}
 	
 	/**
-	 * Returns the daily adjusted stock values for a given stock.
+	 * Returns the daily adjusted stock values for a given company stock.
 	 * @param symbol the stock ticker
 	 * @param full whether or not to retrieve full history or only last 100 data points
 	 * @return JsonObject representing the stock data; null if api error occurred
-	 * @throws IOException
-	 * @throws InterruptedException
 	 */
-	public static PriceData[] dailyAdjusted(String symbol, boolean full) {
+	public static PriceData[] dailyAdjustedCompany(String symbol, boolean full) {
 		logger.info("Requesting {} stock data for {}.", full ? "full" : "compact", symbol);
 		
 		// Setup request parameters
@@ -114,7 +115,78 @@ public final class StockApi {
 		return priceData;
 	}
 	
-	public static CompanyData companyOverview(String symbol) throws IOException, InterruptedException {
+	/**
+	 * Returns the daily adjusted price data for a given etf.
+	 * @param symbol etf symbol
+	 * @param full true to fetch all existing data; false for last 100 data points
+	 * @return 
+	 */
+	public static PriceData[] dailyAdjustedEtf(String symbol, boolean full) {
+		logger.info("Requesting {} ETF data for {}.", full ? "full" : "compact", symbol);
+		
+		long period1;
+		long period2;
+		
+		if(full) {
+			period1 = 0;
+			period2 = System.currentTimeMillis() / 1000;
+		}
+		else {
+			ZonedDateTime now = ZonedDateTime.now();
+			ZonedDateTime past = now.minusDays(100);
+			period1 = past.toEpochSecond();
+			period2 = now.toEpochSecond();
+		}
+		
+		// Build csv fetch url
+		String etf = symbol;		
+		String url = String.format(
+				"https://query1.finance.yahoo.com/v7/finance/download/%s?period1=%d&period2=%d&interval=1d&events=history&includeAdjustedClose=true", 
+				etf,
+				period1,
+				period2
+		);
+		
+		// Download csv data
+		try {
+			ArrayList<PriceData> priceData = new ArrayList<>();
+			URL website = new URL(url);
+			BufferedReader reader = new BufferedReader(new InputStreamReader(website.openStream()));
+			reader.readLine(); // Skip header info
+			String line;
+			while((line = reader.readLine()) != null) {
+				String[] data = line.split(",");
+				String date = data[0];
+				
+				try {
+					double open = Double.valueOf(data[1]);
+					double high = Double.valueOf(data[2]);
+					double low = Double.valueOf(data[3]);
+					double close = Double.valueOf(data[4]);
+					double adjClose = Double.valueOf(data[5]);
+					int volume = Integer.valueOf(data[6]);
+				
+					priceData.add(new PriceData(symbol, LocalDate.parse(date), open, high, low, close, adjClose, volume));
+				} catch (NumberFormatException e) {
+					logger.warn("Unable to add {} ETF data for date {}: {}", symbol, date, e.getMessage());
+				}
+			}
+			
+			logger.info("ETF data for {} successfully downloaded.", symbol);
+			return priceData.toArray(new PriceData[priceData.size()]);
+		} catch (IOException e) {
+			logger.error("Error retrieving ETF data for {}: {}", symbol, e.getMessage());
+		}
+	
+		return null;
+	}
+	
+	/**
+	 * Request company information for a given stock symbol
+	 * @param symbol
+	 * @return company data; null if symbol does not represent a company
+	 */
+	public static CompanyData companyOverview(String symbol) {
 		logger.info("Requesting {} company info.", symbol);
 		
 		// Setup request parameters
@@ -125,7 +197,13 @@ public final class StockApi {
 		
 		// Make the request
 		HttpRequest request = getRequest(params);
-		HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
+		HttpResponse<String> response;
+		try {
+			response = client.send(request, BodyHandlers.ofString());
+		} catch (IOException | InterruptedException e) {
+			logger.error("Retrieving company data for {} failed: {}", symbol, e.getMessage());
+			return null;
+		}
 		
 		// Parse to json object
 		JsonObject data = gson.fromJson(response.body(), JsonObject.class);
@@ -147,6 +225,33 @@ public final class StockApi {
 		long sharesShort = data.get("SharesShort").getAsLong();
 		
 		return new CompanyData(symbol, name, desc, peRatio, sharesOutstanding, sharesFloat, sharesShort);
+	}
+	
+	/**
+	 * Checks if a given symbol represents a company. 
+	 * @param symbol
+	 * @return
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	public static boolean isSymbolCompany(String symbol) throws IOException, InterruptedException {
+		logger.info("Checking if {} is a company stock symbol.", symbol);
+		
+		// Setup request parameters
+		HashMap<String, String> params = new HashMap<>();
+		params.put("function", "OVERVIEW");
+		params.put("symbol", symbol);
+		params.put("apikey", API_KEY);
+		
+		// Make request
+		HttpRequest request = getRequest(params);
+		HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
+		
+		// Parse json
+		JsonObject data = gson.fromJson(response.body(), JsonObject.class);
+		
+		// If the object is not empty, then it is a company
+		return data.entrySet().size() != 0;
 	}
 	
 	/**

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane prefWidth="800" prefHeight="600" xmlns:fx="http://javafx.com/fxml" fx:controller="stockfetcher.ui.UIController">
+
+	<!-- ROOT MENUBAR -->
+	<top>
+    	<MenuBar>
+    		<menus>
+    			<Menu text="File">
+    				<items>
+    					<MenuItem text="Exit"/>
+    				</items>
+    			</Menu>
+    			<Menu text="Edit">
+    				<items>
+    					<MenuItem text="Add Stock/ETF"/>
+    					<MenuItem text="Manual Update"/>
+    					<MenuItem text="Visualize"/>
+    				</items>
+    			</Menu>
+    			<Menu text="Help">
+    				<items>
+    					<MenuItem text="Manual"/>
+    					<MenuItem text="About"/>
+    				</items>
+    			</Menu>
+    		</menus>
+    	</MenuBar>
+	</top>
+	
+	<center>
+		<SplitPane>
+			<items>
+				
+				<!-- RIGHT MENU -->
+				<SplitPane minWidth="200" maxWidth="300" orientation="VERTICAL">
+					<VBox alignment="TOP_CENTER">
+						<Label text="Stocks"/>
+						<ListView fx:id="stockList" VBox.vgrow="ALWAYS"/>
+					</VBox>
+					<VBox alignment="TOP_CENTER">
+						<Label text="ETFs"/>
+						<ListView fx:id="etfList" VBox.vgrow="ALWAYS"/>
+					</VBox>
+				</SplitPane>
+				
+				<!-- CHART DISPLAY -->
+				<VBox minWidth="400" SplitPane.resizableWithParent="true">
+					<LineChart VBox.vgrow="ALWAYS" fx:id="dataChart" title="Share Price">
+						<xAxis>
+							<NumberAxis side="BOTTOM"/>
+						</xAxis>
+						<yAxis>
+							<NumberAxis side="LEFT"/>
+						</yAxis>
+					</LineChart>
+				</VBox>
+				
+				<!-- LEFT MENU -->
+				<SplitPane minWidth="200" maxWidth="300" orientation="VERTICAL">
+					<VBox alignment="CENTER" fillWidth="true">
+						<Label text="View Options"/>
+						<GridPane VBox.vgrow="ALWAYS" hgap="10" vgap="3">
+							<padding>
+								<Insets top="0" bottom="0" left="5" right="5"/>
+							</padding>
+							<Label text="From:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+							<TextField promptText="1/1/2000" GridPane.columnIndex="1" GridPane.rowIndex="0" GridPane.fillWidth="true" GridPane.hgrow="ALWAYS"/>
+							<Label text="Until:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+							<TextField promptText="1/1/2021" GridPane.columnIndex="1" GridPane.rowIndex="1" GridPane.fillWidth="true" GridPane.hgrow="ALWAYS"/>					
+						</GridPane>
+					</VBox>
+					<VBox minWidth="200" maxWidth="300" alignment="CENTER">
+						<Label text="Holding Info"/>
+						<ListView VBox.vgrow="ALWAYS" fx:id="holdingsList"/>
+					</VBox>
+				</SplitPane>
+			</items>
+		</SplitPane>
+	</center>
+	
+</BorderPane>

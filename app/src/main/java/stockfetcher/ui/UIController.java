@@ -6,12 +6,16 @@ import javafx.fxml.FXML;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.ListView;
+import javafx.scene.control.TabPane;
 
 public class UIController {
 
+	
+	
 	@FXML private ListView<String> stockList;
 	@FXML private ListView<String> etfList;
 
+	@FXML private TabPane chartTabs;
 	@FXML private LineChart<Double, Double> dataChart;
 	
 	@FXML private ListView<String> holdingsList;

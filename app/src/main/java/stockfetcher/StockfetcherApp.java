@@ -13,10 +13,10 @@ public class StockfetcherApp extends Application {
 	public static void main(String[] args) {
 		launch(args);
 	}
-	
+
 	@Override
 	public void start(Stage stage) throws Exception {
-		FXMLLoader loader = new FXMLLoader(ClassLoader.getSystemResource("layout.fxml"));
+		FXMLLoader loader = new FXMLLoader(ClassLoader.getSystemResource("app_layout.fxml"));
 		
 		BorderPane pane = loader.<BorderPane>load();
 		Scene scene = new Scene(pane);

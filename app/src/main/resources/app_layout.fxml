@@ -16,7 +16,7 @@
 <?import javafx.scene.chart.NumberAxis?>
 <?import javafx.geometry.Insets?>
 
-<BorderPane prefWidth="800" prefHeight="600" xmlns:fx="http://javafx.com/fxml" fx:controller="stockfetcher.ui.UIController">
+<BorderPane prefWidth="800" prefHeight="600" xmlns:fx="http://javafx.com/fxml" fx:controller="stockfetcher.ui.UIController" stylesheets="@app_style.css">
 
 	<!-- ROOT MENUBAR -->
 	<top>
@@ -45,7 +45,7 @@
 	</top>
 	
 	<center>
-		<SplitPane>
+		<SplitPane styleClass="test">
 			<items>
 				
 				<!-- RIGHT MENU -->

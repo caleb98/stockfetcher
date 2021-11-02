@@ -6,6 +6,7 @@ import javafx.fxml.FXML;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 
 public class UIController {
@@ -16,6 +17,7 @@ public class UIController {
 	@FXML private ListView<String> etfList;
 
 	@FXML private TabPane chartTabs;
+	@FXML private Tab newTabButton;
 	@FXML private LineChart<Double, Double> dataChart;
 	
 	@FXML private ListView<String> holdingsList;
@@ -46,6 +48,14 @@ public class UIController {
 		dataChart.getData().add(gme);
 		
 		holdingsList.getItems().add("FB - 100%");
+		
+		// Setup the new tab button
+		chartTabs.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab)->{
+			if(newTab == newTabButton) {
+				chartTabs.getTabs().add(chartTabs.getTabs().size() - 1, new Tab("New Tab"));
+				chartTabs.getSelectionModel().select(chartTabs.getTabs().size() - 2);
+			}
+		});
 	}
 	
 }

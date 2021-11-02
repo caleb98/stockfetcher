@@ -75,7 +75,9 @@
 									</yAxis>
 								</LineChart>
 							</Tab>
-							<Tab closable="false" text="+" />
+						
+							<!-- New Tab "button" -->
+							<Tab fx:id="newTabButton" closable="false" text="+"/>
 						</tabs>
 					</TabPane>
 				</VBox>

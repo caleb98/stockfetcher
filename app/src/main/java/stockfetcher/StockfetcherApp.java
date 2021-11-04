@@ -21,9 +21,6 @@ public class StockfetcherApp extends Application {
 		BorderPane pane = loader.<BorderPane>load();
 		Scene scene = new Scene(pane);
 		
-		UIController control = loader.getController();
-		control.test();
-		
 		stage.setTitle("Stockfetcher");
 		stage.setScene(scene);
 		stage.show();

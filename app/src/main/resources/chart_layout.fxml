@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml" fx:controller="stockfetcher.ui.ChartController" stylesheets="@app_style.css" alignment="CENTER">
+	<LineChart fx:id="dataChart" title="None" VBox.vgrow="ALWAYS">
+		<xAxis>
+			<CategoryAxis fx:id="xAxis" side="BOTTOM"/>
+		</xAxis>
+		<yAxis>
+			<NumberAxis fx:id="yAxis" side="LEFT"/>
+		</yAxis>
+	</LineChart>
+	<GridPane hgap="5">
+		<columnConstraints>
+			<ColumnConstraints halignment="RIGHT"/>
+			<ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+			<ColumnConstraints halignment="RIGHT"/>
+			<ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+			<ColumnConstraints minWidth="100"/>
+		</columnConstraints>
+		<padding>
+			<Insets top="5" bottom="5" left="10" right="10"/>
+		</padding>
+		<Label text="From:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+		<DatePicker promptText="1/1/2000" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>
+		<Label text="To:" GridPane.columnIndex="2" GridPane.rowIndex="0" alignment="BASELINE_RIGHT"/>
+		<DatePicker promptText="1/1/2020" GridPane.columnIndex="3" GridPane.rowIndex="0" maxWidth="Infinity"/>
+		<Button text="Change Symbols" GridPane.columnIndex="4"/>
+	</GridPane>
+</VBox>

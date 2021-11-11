@@ -12,7 +12,7 @@
 <?import javafx.geometry.Insets?>
 
 <VBox xmlns:fx="http://javafx.com/fxml" fx:controller="stockfetcher.ui.ChartController" stylesheets="@app_style.css" alignment="CENTER">
-	<LineChart fx:id="dataChart" title="None" VBox.vgrow="ALWAYS">
+	<LineChart fx:id="dataChart" title="New Chart" VBox.vgrow="ALWAYS">
 		<xAxis>
 			<CategoryAxis fx:id="xAxis" side="BOTTOM"/>
 		</xAxis>
@@ -35,6 +35,6 @@
 		<DatePicker promptText="1/1/2000" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>
 		<Label text="To:" GridPane.columnIndex="2" GridPane.rowIndex="0" alignment="BASELINE_RIGHT"/>
 		<DatePicker promptText="1/1/2020" GridPane.columnIndex="3" GridPane.rowIndex="0" maxWidth="Infinity"/>
-		<Button text="Change Symbols" GridPane.columnIndex="4"/>
+		<Button text="Edit Chart" GridPane.columnIndex="4" onAction="#changeSymbolsTracked"/>
 	</GridPane>
 </VBox>

@@ -34,7 +34,7 @@ public class UIController {
 		
 		holdingsList.getItems().add("FB - 100%");
 		
-		//createNewTab();
+		createNewTab();
 		
 		// Setup the new tab button
 		chartTabs.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab)->{
@@ -48,8 +48,10 @@ public class UIController {
 		try {			
 			FXMLLoader loader = new FXMLLoader(ClassLoader.getSystemResource("chart_layout.fxml"));
 			VBox tabContents = loader.<VBox>load();
+			ChartController chart = loader.getController();
 			
 			Tab newTab = new Tab("New Tab", tabContents);
+			newTab.textProperty().bind(chart.chartNameProperty());
 			chartTabs.getTabs().add(chartTabs.getTabs().size() - 1, newTab);
 			chartTabs.getSelectionModel().select(chartTabs.getTabs().size() - 2);
 			

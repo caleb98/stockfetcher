@@ -67,9 +67,9 @@
 					<TextField promptText="search..." alignment="CENTER"/>
 					<TabPane fx:id="chartTabs" VBox.vgrow="ALWAYS">
 						<tabs>	
-							<Tab text="Chart 1">
+							<!--<Tab text="Chart 1">
 								<fx:include source="chart_layout.fxml"/>
-							</Tab>
+							</Tab>-->
 							<!-- New Tab "button" -->
 							<Tab fx:id="newTabButton" closable="false" text="+"/>
 						</tabs>

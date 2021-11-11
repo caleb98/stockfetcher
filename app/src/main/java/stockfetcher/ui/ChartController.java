@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Random;
 
+import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.event.Event;
 import javafx.fxml.FXML;
@@ -72,6 +73,8 @@ public class ChartController {
 		
 		dialog.getDialogPane().setContent(grid);
 		
+		Platform.runLater(nameField::requestFocus);
+		
 		dialog.setResultConverter((buttonType)->{
 			if(buttonType == ButtonType.OK) {	
 				return new Pair<String, String>(nameField.getText(), symbolsField.getText());
@@ -93,7 +96,7 @@ public class ChartController {
 			String newSymbols = resultValue.getValue();
 			
 			// Update the chart name
-			dataChart.titleProperty().set(newChartName);
+			dataChart.setTitle(newChartName);
 			
 			// Update the tracked symbols
 			String[] newSymbolsArray = newSymbols.split(",");

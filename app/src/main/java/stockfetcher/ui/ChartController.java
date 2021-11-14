@@ -1,99 +1,132 @@
 package stockfetcher.ui;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Optional;
-import java.util.Random;
 
-import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
 import javafx.event.Event;
 import javafx.fxml.FXML;
-import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
-import javafx.scene.control.ButtonType;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
+import javafx.scene.control.Tooltip;
 import javafx.util.Pair;
+import javafx.util.StringConverter;
+import stockfetcher.api.PriceData;
+import stockfetcher.db.StockDatabase;
 
 public class ChartController {
 	
-	@FXML private LineChart<String, Double> dataChart;
-	@FXML private CategoryAxis xAxis;
+	private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd LLL YY");
+	
+	@FXML private LineChart<Number, Double> dataChart;
+	@FXML private NumberAxis xAxis;
 	@FXML private NumberAxis yAxis;
+	
+	@FXML private DatePicker startDatePicker;
+	@FXML private DatePicker endDatePicker;
 	
 	private ArrayList<String> symbolsTracked = new ArrayList<>();
 	
-	public void initialize() {
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd LLL YY");
+	public void initialize() {		
+		// Formatter for converting x axis date to numbers/strings and vice versa
+		xAxis.setTickLabelFormatter(new StringConverter<Number>() {
+			@Override
+			public String toString(Number epochDay) {
+				Long day = Math.round((Double) epochDay);
+				LocalDate date = LocalDate.ofEpochDay(day);
+				return date.format(DATE_FORMAT);
+			}
+			
+			@Override
+			public Number fromString(String stringDate) {
+				LocalDate date = LocalDate.parse(stringDate, DATE_FORMAT);
+				return date.toEpochDay();
+			}
+		});		
 		
-		XYChart.Series<String, Double> crsr = new XYChart.Series<>();
-		crsr.setName("CRSR");
-		XYChart.Series<String, Double> gme = new XYChart.Series<>();
-		gme.setName("GME");
-		Random rand = new Random();
-		for(int i = 0; i < 50; i++) {
-			LocalDate d = LocalDate.now().plusDays(i);
-			String date = d.format(formatter);
-			crsr.getData().add(new XYChart.Data<String, Double>(date, 20 + i * 0.6 + rand.nextDouble() * 5));
-			gme.getData().add(new XYChart.Data<String, Double>(date, 40 + i * -0.6 + rand.nextDouble() * 10));
+		symbolsTracked.add("CRSR");
+		chartSymbolData("CRSR");
+	}
+	
+	private void chartSymbolData(String symbol) {
+		ArrayList<PriceData> priceData = StockDatabase.getSymbolPriceData(symbol);
+		
+		if(priceData.size() == 0) {
+			// TODO: warn no data
+			return;
 		}
 		
-		dataChart.getData().add(crsr);
-		dataChart.getData().add(gme);
+		XYChart.Series<Number, Double> pricePoints = new XYChart.Series<>();
+		pricePoints.setName(symbol);
+		for(PriceData point : priceData) {
+			long date = point.date.toEpochDay();
+			var dataPoint = new XYChart.Data<Number, Double>(date, point.adjClose);
+			pricePoints.getData().add(dataPoint);
+		}
+		
+		dataChart.getData().removeIf(s -> {return s.getName().equals(symbol);});
+		dataChart.getData().add(pricePoints);
+		
+		for(var point : pricePoints.getData()) {
+			LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
+			Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
+			t.setShowDelay(javafx.util.Duration.millis(200));
+			point.getNode().getStyleClass().add("line-node");
+			Tooltip.install(point.getNode(), t);
+		}
+	}
+	
+	@FXML
+	private void updateDateRange(Event e) {
+		LocalDate startDate = startDatePicker.getValue();
+		LocalDate endDate = endDatePicker.getValue();
+		
+		if(startDate == null || endDate == null) {
+			return;
+		}
+		
+		LocalDateTime start = LocalDateTime.of(startDatePicker.getValue(), LocalTime.NOON);
+		LocalDateTime end = LocalDateTime.of(endDatePicker.getValue(), LocalTime.NOON);
+		long daysBetween = Duration.between(start, end).toDays();
+		
+		if(daysBetween < 30) {
+			// TODO: no range less than 30 days
+			return;
+		}
+		
+		Number startEpoch = start.toLocalDate().toEpochDay();
+		Number endEpoch = end.toLocalDate().toEpochDay();
+		xAxis.setAutoRanging(false);
+		xAxis.setLowerBound(startEpoch.doubleValue());
+		xAxis.setUpperBound(endEpoch.doubleValue());
+		xAxis.setTickUnit(daysBetween / 15);
 	}
 	
 	@FXML
 	private void changeSymbolsTracked(Event e) {
+		// Pull the currently tracked symbols
 		String[] symbols = symbolsTracked.toArray(new String[0]);
 		String symbolsString = String.join(",", symbols);
 		
-		Dialog<Pair<String, String>> dialog = new Dialog<>();
-		dialog.setTitle("Update Chart");
-		dialog.setHeaderText("Enter new chart name and symbols tracked.");
+		// Create the dialog box
+		Dialog<Pair<String, String>> dialog = new ChartEditDialog(dataChart.titleProperty().get(), symbolsString);
 		
-		dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-		
-		TextField nameField = new TextField(dataChart.titleProperty().get());
-		TextField symbolsField = new TextField(symbolsString);
-		
-		GridPane grid = new GridPane();
-		grid.setHgap(5);
-		grid.setVgap(5);
-		
-		grid.add(new Label("Chart Name:"), 0, 0);
-		grid.add(nameField, 1, 0);
-		grid.add(new Label("Symbols:"), 0, 1);
-		grid.add(symbolsField, 1, 1);
-		
-		dialog.getDialogPane().setContent(grid);
-		
-		Platform.runLater(nameField::requestFocus);
-		
-		dialog.setResultConverter((buttonType)->{
-			if(buttonType == ButtonType.OK) {	
-				return new Pair<String, String>(nameField.getText(), symbolsField.getText());
-			}
-			else {
-				return null;
-			}
-		});
-		
-		Optional<Pair<String, String>> result = dialog.showAndWait();
-		result.ifPresent(resultValue -> {
-			// Check that the OK button was pressed
-			if(resultValue == null) {
+		// Get dialog result
+		dialog.resultProperty().addListener((obs, oldValue, newValue) -> {
+			if(newValue == null) {
 				return;
 			}
 			
 			// Get the values from the UI elements
-			String newChartName = resultValue.getKey();
-			String newSymbols = resultValue.getValue();
+			String newChartName = newValue.getKey();
+			String newSymbols = newValue.getValue();
 			
 			// Update the chart name
 			dataChart.setTitle(newChartName);
@@ -109,7 +142,12 @@ public class ChartController {
 				symbolsTracked.add(s);
 			}
 			//TODO: update chart
+			
+			for(String symbol : symbolsTracked) {
+				chartSymbolData(symbol);
+			}
 		});
+		dialog.show();
 	}
 	
 	public String getChartName() {

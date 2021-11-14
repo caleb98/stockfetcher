@@ -1,1 +1,13 @@
 /* App style goes here. */
+.chart-series-line {
+	-fx-stroke-width: 2px;
+	-fx-effect: null;
+}
+
+.line-node {
+	-fx-background-color: rgba(0, 0, 0, 0);
+}
+
+.tooltip {
+	-fx-font-size: 12pt;
+}

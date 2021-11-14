@@ -8,6 +8,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.VBox;
+import stockfetcher.db.StockDatabase;
 
 public class UIController {
 	
@@ -20,17 +21,8 @@ public class UIController {
 	@FXML private ListView<String> holdingsList;
 
 	public void initialize() {
-		stockList.getItems().add("GME");
-		stockList.getItems().add("CRSR");
-		stockList.getItems().add("AMD");
-		stockList.getItems().add("GOOGL");
-		stockList.getItems().add("APPL");
-		
-		etfList.getItems().add("SPGP");
-		etfList.getItems().add("IWY");
-		etfList.getItems().add("MGK");
-		etfList.getItems().add("IWF");
-		etfList.getItems().add("SPYG");
+		stockList.getItems().addAll(StockDatabase.getAllStockSymbols());
+		etfList.getItems().addAll(StockDatabase.getAllETFSymbols());
 		
 		holdingsList.getItems().add("FB - 100%");
 		

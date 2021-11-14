@@ -12,12 +12,12 @@
 <?import javafx.geometry.Insets?>
 
 <VBox xmlns:fx="http://javafx.com/fxml" fx:controller="stockfetcher.ui.ChartController" stylesheets="@app_style.css" alignment="CENTER">
-	<LineChart fx:id="dataChart" title="New Chart" VBox.vgrow="ALWAYS">
+	<LineChart styleClass="chart-content" fx:id="dataChart" title="New Chart" VBox.vgrow="ALWAYS">
 		<xAxis>
-			<CategoryAxis fx:id="xAxis" side="BOTTOM"/>
+			<NumberAxis fx:id="xAxis" side="BOTTOM" forceZeroInRange="false" tickLabelRotation="90"/>
 		</xAxis>
 		<yAxis>
-			<NumberAxis fx:id="yAxis" side="LEFT"/>
+			<NumberAxis fx:id="yAxis" side="LEFT" label="Price ($)"/>
 		</yAxis>
 	</LineChart>
 	<GridPane hgap="5">
@@ -32,9 +32,9 @@
 			<Insets top="5" bottom="5" left="10" right="10"/>
 		</padding>
 		<Label text="From:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-		<DatePicker promptText="1/1/2000" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity"/>
+		<DatePicker fx:id="startDatePicker" promptText="1/1/2000" GridPane.columnIndex="1" GridPane.rowIndex="0" maxWidth="Infinity" onAction="#updateDateRange"/>
 		<Label text="To:" GridPane.columnIndex="2" GridPane.rowIndex="0" alignment="BASELINE_RIGHT"/>
-		<DatePicker promptText="1/1/2020" GridPane.columnIndex="3" GridPane.rowIndex="0" maxWidth="Infinity"/>
-		<Button text="Edit Chart" GridPane.columnIndex="4" onAction="#changeSymbolsTracked"/>
+		<DatePicker fx:id="endDatePicker" promptText="1/1/2020" GridPane.columnIndex="3" GridPane.rowIndex="0" maxWidth="Infinity" onAction="#updateDateRange"/>
+		<Button text="Edit Chart" GridPane.columnIndex="4" onAction="#changeSymbolsTracked" maxWidth="Infinity"/>
 	</GridPane>
 </VBox>

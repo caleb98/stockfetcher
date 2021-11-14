@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.slf4j.Logger;
@@ -406,6 +408,74 @@ public final class StockDatabase {
 		} catch (SQLException e) {
 			logger.error("Error while attempting to insert price data: {}", e.getMessage());
 		}
+	}
+	
+	public static ArrayList<String> getAllStockSymbols() {
+		logger.info("Loading all stock symbols fromd database.");
+		ArrayList<String> symbols = new ArrayList<>();
+		
+		String sql = "SELECT symbol FROM companies JOIN symbols ON symbols.symbol_id = companies.symbol_id";
+		try(
+			Statement stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(sql);
+		) {
+			while(rs.next()) {
+				symbols.add(rs.getString("symbol"));
+			}
+		} catch (SQLException e) {
+			logger.error("Error retreiving company stock symbols from database: {}", e.getMessage());
+		}
+		
+		return symbols;
+	}
+	
+	public static ArrayList<String> getAllETFSymbols() {
+		logger.info("Loading all ETF symbols from database.");
+		ArrayList<String> symbols = new ArrayList<>();
+		
+		String sql = "SELECT symbol FROM etfs JOIN symbols ON symbols.symbol_id = etfs.symbol_id";
+		try(
+			Statement stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(sql);
+		) {
+			while(rs.next()) {
+				symbols.add(rs.getString("symbol"));
+			}
+		} catch (SQLException e) {
+			logger.error("Error retreiving ETF symbols from database: {}", e.getMessage());
+		}
+		
+		return symbols;
+	}
+	
+	public static ArrayList<PriceData> getSymbolPriceData(String symbol) {
+		ArrayList<PriceData> data = new ArrayList<>();	
+		logger.info("Loading price data for {} from database.", symbol);
+		
+		int symbolId = getSymbolId(symbol);
+		String sql = String.format("SELECT * FROM prices WHERE symbol_id=%d", symbolId);
+		
+		try (
+			Statement stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(sql);
+		) {
+			while(rs.next()) {
+				data.add(new PriceData(
+						symbol, 
+						LocalDate.parse(rs.getString("date")), 
+						rs.getDouble("open"), 
+						rs.getDouble("high"), 
+						rs.getDouble("low"), 
+						rs.getDouble("close"), 
+						rs.getDouble("adjusted_close"), 
+						rs.getInt("volume")
+				));
+			}
+		} catch (SQLException e) {
+			logger.error("Error loading price data for {} from database: {}", symbol, e.getMessage());
+		}
+		
+		return data;
 	}
 	
 }

@@ -54,11 +54,11 @@
 				<SplitPane minWidth="200" maxWidth="300" orientation="VERTICAL">
 					<VBox alignment="TOP_CENTER">
 						<Label text="Stocks"/>
-						<ListView fx:id="stockList" VBox.vgrow="ALWAYS"/>
+						<ListView fx:id="stockList" VBox.vgrow="ALWAYS" onMouseClicked="#stockSelected"/>
 					</VBox>
 					<VBox alignment="TOP_CENTER">
 						<Label text="ETFs"/>
-						<ListView fx:id="etfList" VBox.vgrow="ALWAYS"/>
+						<ListView fx:id="etfList" VBox.vgrow="ALWAYS" onMouseClicked="#etfSelected"/>
 					</VBox>
 				</SplitPane>
 				

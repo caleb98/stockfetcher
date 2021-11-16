@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
 
+import javafx.util.Pair;
 import stockfetcher.api.CompanyData;
 import stockfetcher.api.EtfData;
 import stockfetcher.api.PriceData;
@@ -478,4 +479,52 @@ public final class StockDatabase {
 		return data;
 	}
 	
+	public static ArrayList<Pair<String, Double>> getEtfHoldings(String symbol) {
+		ArrayList<Pair<String, Double>> holdings = new ArrayList<>();
+		logger.info("Loading holding data for ETF {}.", symbol);
+		
+		String sql = "SELECT "
+				+ "	   held_symbol.symbol AS held_symbol,"
+				+ "    etf_symbol.symbol AS etf_symbol,  "
+				+ "    percent "
+				+ "FROM etf_holdings "
+				+ "JOIN symbols AS held_symbol ON held_symbol.symbol_id = etf_holdings.symbol_id "
+				+ "JOIN etfs ON etfs.etf_id = etf_holdings.etf_id "
+				+ "JOIN symbols AS etf_symbol ON etfs.symbol_id = etf_symbol.symbol_id "
+				+ "WHERE etf_symbol.symbol = ? "
+				+ "ORDER BY percent DESC";
+		try (
+			PreparedStatement prep = conn.prepareStatement(sql);
+		) {
+			prep.setString(1, symbol);
+			ResultSet rs = prep.executeQuery();
+			while(rs.next()) {
+				String heldSymbol = rs.getString("held_symbol");
+				double percent = rs.getDouble("percent");
+				holdings.add(new Pair<>(heldSymbol, percent));
+			}
+		} catch (SQLException e) {
+			logger.error("Error loading ETF holding data for {} from database: {}", symbol, e.getMessage());
+		} 
+		
+		return holdings;
+	}
+	
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

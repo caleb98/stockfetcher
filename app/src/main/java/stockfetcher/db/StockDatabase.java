@@ -412,7 +412,7 @@ public final class StockDatabase {
 	}
 	
 	public static ArrayList<String> getAllStockSymbols() {
-		logger.info("Loading all stock symbols fromd database.");
+		logger.info("Loading all stock symbols from database.");
 		ArrayList<String> symbols = new ArrayList<>();
 		
 		String sql = "SELECT symbol FROM companies JOIN symbols ON symbols.symbol_id = companies.symbol_id";

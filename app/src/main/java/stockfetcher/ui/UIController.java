@@ -2,17 +2,22 @@ package stockfetcher.ui;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Optional;
 
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.application.Platform;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.VBox;
 import javafx.util.Pair;
+import stockfetcher.api.CompanyData;
+import stockfetcher.api.EtfData;
+import stockfetcher.api.PriceData;
+import stockfetcher.api.StockApi;
 import stockfetcher.db.StockDatabase;
 
 public class UIController {
@@ -28,11 +33,13 @@ public class UIController {
 	@FXML private ListView<String> holdingsList;
 
 	public void initialize() {
-		stockList.getItems().addAll(StockDatabase.getAllStockSymbols());
-		etfList.getItems().addAll(StockDatabase.getAllETFSymbols());
-		
-		createNewTab();
+		// Setup relevant lists
+		updateStocksList();
+		updateEtfList();
 		updateHoldingsList();
+		
+		// Add a chart tab
+		createNewTab();
 		
 		// Setup the new tab button
 		chartTabs.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab)->{
@@ -40,6 +47,14 @@ public class UIController {
 				createNewTab();
 			}
 		});
+	}
+	
+	private void updateStocksList() {
+		stockList.getItems().setAll(StockDatabase.getAllStockSymbols());
+	}
+	
+	private void updateEtfList() {
+		etfList.getItems().setAll(StockDatabase.getAllETFSymbols());
 	}
 	
 	private void updateHoldingsList() {
@@ -91,6 +106,74 @@ public class UIController {
 		selectedSymbol = etfList.getSelectionModel().getSelectedItem();
 		isEtfSelected = true;
 		updateHoldingsList();
+	}
+	
+	@FXML
+	private void requestExit(Event e) {
+		Platform.exit();
+	}
+	
+	@FXML
+	private void addNewStock(Event e) {
+		TextInputDialog dialog = new TextInputDialog();
+		dialog.setTitle("New Tracked Symbol");
+		dialog.setHeaderText("Enter the new symbol you would like to track.");
+		dialog.setContentText("Symbol");
+		
+		Optional<String> result = dialog.showAndWait();
+		result.ifPresent(symbol -> {
+			// TODO: warn stock present?
+			
+			// Fetch price data
+			PriceData[] data = StockApi.getStockPriceData(symbol, true);
+			
+			// Check symbol was valid
+			if(data == null) {
+				// TODO: actual error handling
+				return;
+			}
+			
+			// Add the price data
+			StockDatabase.addPriceData(data);
+			
+			// Check whether it was an etf or company, and add
+			// data as appropriate
+			try {
+				if(StockApi.isSymbolCompany(symbol)) {
+					CompanyData cData = StockApi.getCompanyOverview(symbol);
+					
+					// Check that company data was retrieved successfully
+					if(cData == null) {
+						//TODO: warn user
+						return;
+					}
+					
+					// Insert the data in the database
+					StockDatabase.addCompanyData(cData);
+					
+					// Update stock list
+					updateStocksList();
+				}
+				else if(StockApi.isSymbolETF(symbol)) {
+					EtfData eData = StockApi.getEtfOverview(symbol);
+					
+					// Check that etf data was retrieved successfully
+					if(eData == null) {
+						//TODO: warn user
+						return;
+					}
+					
+					// Add data to the database
+					StockDatabase.addEtfData(eData);
+					
+					// Update etf list
+					updateEtfList();
+				}
+			} catch (IOException | InterruptedException e1) {
+				// TODO: log this error/handle appropriately
+				e1.printStackTrace();
+			}
+		});
 	}
 	
 }

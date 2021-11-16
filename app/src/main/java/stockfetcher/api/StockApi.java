@@ -221,8 +221,14 @@ public final class StockApi {
 		String desc = data.get("Description").getAsString();
 		double peRatio = data.get("PERatio").getAsDouble();
 		long sharesOutstanding = data.get("SharesOutstanding").getAsLong();
-		long sharesFloat = data.get("SharesFloat").getAsLong();
-		long sharesShort = data.get("SharesShort").getAsLong();
+		
+		long sharesFloat = -1;
+		if(data.has("SharesFloat"))
+			sharesFloat = data.get("SharesFloat").getAsLong();
+		
+		long sharesShort = -1;
+		if(data.has("SharesFloat"))
+			sharesShort = data.get("SharesShort").getAsLong();
 		
 		return new CompanyData(symbol, name, desc, peRatio, sharesOutstanding, sharesFloat, sharesShort);
 	}

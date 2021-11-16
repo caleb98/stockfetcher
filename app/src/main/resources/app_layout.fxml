@@ -26,12 +26,12 @@
     		<menus>
     			<Menu text="File">
     				<items>
-    					<MenuItem text="Exit"/>
+    					<MenuItem text="Exit" onAction="#requestExit"/>
     				</items>
     			</Menu>
     			<Menu text="Edit">
     				<items>
-    					<MenuItem text="Add Stock/ETF"/>
+    					<MenuItem text="Add Stock/ETF" onAction="#addNewStock"/>
     					<MenuItem text="Manual Update"/>
     					<MenuItem text="Visualize"/>
     				</items>

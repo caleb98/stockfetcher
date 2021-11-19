@@ -510,6 +510,29 @@ public final class StockDatabase {
 		return holdings;
 	}
 	
+	/**
+	 * Checks whether or not price data for a symbol is present in the
+	 * database. 
+	 * @param symbol symbol to look for
+	 * @return true if the price data is present; false otherwise or if an error occurred.
+	 */
+	public static boolean hasPriceData(String symbol) {
+		logger.info("Checking if price data for {} is present.", symbol);
+		int symbolId = getSymbolId(symbol);
+		String sql = "SELECT * FROM prices WHERE symbol_id = " + symbolId;
+		
+		try (
+			Statement stmt = conn.createStatement();
+		) {
+			ResultSet rs = stmt.executeQuery(sql);
+			return rs.isBeforeFirst();
+		} catch (SQLException e) {
+			logger.error("Error checking for price data for {}: {}", symbol, e.getMessage());
+		}
+		
+		return false;
+	}
+	
 }
 
 

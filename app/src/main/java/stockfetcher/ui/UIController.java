@@ -2,16 +2,21 @@ package stockfetcher.ui;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Optional;
 
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.event.Event;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.VBox;
 import javafx.util.Pair;
 import stockfetcher.api.CompanyData;
@@ -115,65 +120,173 @@ public class UIController {
 	
 	@FXML
 	private void addNewStock(Event e) {
-		TextInputDialog dialog = new TextInputDialog();
-		dialog.setTitle("New Tracked Symbol");
-		dialog.setHeaderText("Enter the new symbol you would like to track.");
-		dialog.setContentText("Symbol");
+		AddTrackedStockDialog dialog = new AddTrackedStockDialog();
 		
-		Optional<String> result = dialog.showAndWait();
-		result.ifPresent(symbol -> {
-			// TODO: warn stock present?
-			
-			// Fetch price data
-			PriceData[] data = StockApi.getStockPriceData(symbol, true);
-			
-			// Check symbol was valid
-			if(data == null) {
-				// TODO: actual error handling
-				return;
+		Optional<ArrayList<String>> result = dialog.showAndWait();
+		result.ifPresent(symbolsList -> {
+			final ProgressDialog progress = new ProgressDialog("Adding symbols...");
+			progress.show();
+		
+			// Check for symbols already in the database
+			Iterator<String> symbolsIter = symbolsList.iterator();
+			while(symbolsIter.hasNext()) {
+				String symbol = symbolsIter.next();
+				
+				// Check if the symbol is already present and warn the
+				// user if so.
+				if(StockDatabase.hasPriceData(symbol)) {
+					ButtonType yes = new ButtonType("Yes", ButtonBar.ButtonData.OK_DONE);
+					ButtonType no = new ButtonType("No", ButtonBar.ButtonData.CANCEL_CLOSE);
+					
+					Alert alert = new Alert(AlertType.WARNING, null, yes, no);
+					alert.setHeaderText("The symbol " + symbol + " is already present. Continue loading data anyway?");
+					
+					// If the user responds "no", then remove it from the list
+					Optional<ButtonType> loadAnyway = alert.showAndWait();
+					if(loadAnyway.isPresent() && loadAnyway.get() == no) {
+						symbolsIter.remove();
+					}
+				}
 			}
 			
-			// Add the price data
-			StockDatabase.addPriceData(data);
-			
-			// Check whether it was an etf or company, and add
-			// data as appropriate
-			try {
-				if(StockApi.isSymbolCompany(symbol)) {
-					CompanyData cData = StockApi.getCompanyOverview(symbol);
-					
-					// Check that company data was retrieved successfully
-					if(cData == null) {
-						//TODO: warn user
-						return;
+			// Loop through all the symbols to add
+			var task = new Task<Void>() {
+				public Void call() {
+					int processed = 0;
+					for(String symbol : symbolsList) {
+						
+						// Fetch price data
+						Platform.runLater(()->{
+							progress.setInfo("Downloading price data for " + symbol + "...");
+						});
+						PriceData[] data = StockApi.getStockPriceData(symbol, true);
+						updateProgress(processed + 1.0 / 3.0, symbolsList.size());
+						
+						// Check symbol was valid
+						if(data == null) {
+							// TODO: actual error handling
+							continue;
+						}
+						
+						// Add the price data
+						Platform.runLater(()->{
+							progress.setInfo(String.format(
+								"Adding price data for %s to database (%d entries)...", 
+								symbol,
+								data.length
+							));
+						});
+						StockDatabase.addPriceData(data);
+						updateProgress(processed + 2.0 / 3.0, symbolsList.size());
+						
+						// Check whether it was an etf or company, and add
+						// data as appropriate
+						try {
+							Platform.runLater(()->{
+								progress.setInfo("Checking if " + symbol + " is a stock or ETF...");
+							});
+							if(StockApi.isSymbolCompany(symbol)) {
+								Platform.runLater(()->{
+									progress.setInfo(String.format(
+										"Downloading company data for %s...",
+										symbol
+									));
+								});
+								CompanyData cData = StockApi.getCompanyOverview(symbol);
+								
+								// Check that company data was retrieved successfully
+								if(cData == null) {
+									//TODO: warn user
+									continue;
+								}
+								
+								// Insert the data in the database
+								Platform.runLater(()->{
+									progress.setInfo(String.format(
+										"Adding company data for %s (%s) to database...",
+										cData.name,
+										symbol
+									));
+								});
+								StockDatabase.addCompanyData(cData);
+								
+								// Update stock list
+								Platform.runLater(()->{updateStocksList();});
+							}
+							else if(StockApi.isSymbolETF(symbol)) {
+								Platform.runLater(()->{
+									progress.setInfo(String.format(
+										"Downloading ETF data for %s...",
+										symbol
+									));
+								});
+								EtfData eData = StockApi.getEtfOverview(symbol);
+								
+								// Check that etf data was retrieved successfully
+								if(eData == null) {
+									//TODO: warn user 
+									continue;
+								}
+								
+								// Add data to the database
+								Platform.runLater(()->{
+									progress.setInfo(String.format(
+										"Adding ETF data for %s (%s) to database...",
+										eData.name,
+										symbol
+									));
+								});
+								StockDatabase.addEtfData(eData);
+								
+								// Update etf list
+								Platform.runLater(()->{updateEtfList();});
+							}
+						} catch (IOException | InterruptedException e1) {
+							// TODO: log this error/handle appropriately
+							e1.printStackTrace();
+						}
+						updateProgress(++processed, symbolsList.size());
+						System.out.println(getProgress());
 					}
 					
-					// Insert the data in the database
-					StockDatabase.addCompanyData(cData);
-					
-					// Update stock list
-					updateStocksList();
+					return null;
 				}
-				else if(StockApi.isSymbolETF(symbol)) {
-					EtfData eData = StockApi.getEtfOverview(symbol);
-					
-					// Check that etf data was retrieved successfully
-					if(eData == null) {
-						//TODO: warn user
-						return;
-					}
-					
-					// Add data to the database
-					StockDatabase.addEtfData(eData);
-					
-					// Update etf list
-					updateEtfList();
-				}
-			} catch (IOException | InterruptedException e1) {
-				// TODO: log this error/handle appropriately
-				e1.printStackTrace();
-			}
+			};
+			progress.progressProperty().bind(task.progressProperty());
+			new Thread(task).start();
 		});
 	}
 	
+	@FXML
+	private void updateStockData(Event e) {
+		
+	}
+	
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

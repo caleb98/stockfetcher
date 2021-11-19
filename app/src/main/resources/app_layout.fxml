@@ -32,7 +32,7 @@
     			<Menu text="Edit">
     				<items>
     					<MenuItem text="Add Stock/ETF" onAction="#addNewStock"/>
-    					<MenuItem text="Manual Update"/>
+    					<MenuItem text="Manual Update" onAction="#updateStockData"/>
     					<MenuItem text="Visualize"/>
     				</items>
     			</Menu>

@@ -2,10 +2,12 @@ package stockfetcher.ui;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Optional;
 
 import javafx.application.Platform;
+import javafx.collections.transformation.SortedList;
 import javafx.concurrent.Task;
 import javafx.event.Event;
 import javafx.fxml.FXML;
@@ -55,11 +57,15 @@ public class UIController {
 	}
 	
 	private void updateStocksList() {
-		stockList.getItems().setAll(StockDatabase.getAllStockSymbols());
+		ArrayList<String> stocks = StockDatabase.getAllStockSymbols();
+		Collections.sort(stocks);
+		stockList.getItems().setAll(stocks);
 	}
 	
 	private void updateEtfList() {
-		etfList.getItems().setAll(StockDatabase.getAllETFSymbols());
+		ArrayList<String> etfs = StockDatabase.getAllETFSymbols();
+		Collections.sort(etfs);
+		etfList.getItems().setAll(etfs);
 	}
 	
 	private void updateHoldingsList() {
@@ -246,9 +252,11 @@ public class UIController {
 							e1.printStackTrace();
 						}
 						updateProgress(++processed, symbolsList.size());
-						System.out.println(getProgress());
 					}
-					
+
+					Platform.runLater(()->{
+						progress.setInfo("Complete!");
+					});
 					return null;
 				}
 			};

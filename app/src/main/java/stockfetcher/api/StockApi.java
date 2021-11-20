@@ -107,7 +107,7 @@ public final class StockApi {
 				
 					priceData.add(new PriceData(symbol, LocalDate.parse(date), open, high, low, close, adjClose, volume));
 				} catch (NumberFormatException e) {
-					logger.warn("Unable to add {} data for date {}: {}", symbol, date, e.getMessage());
+					logger.warn("Unable to add {} data for date {}. Data invalid: {}", symbol, date, line);
 				}
 			}
 			

@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import javafx.beans.property.StringProperty;
 import javafx.event.Event;
@@ -13,6 +14,7 @@ import javafx.fxml.FXML;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Series;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Tooltip;
@@ -56,6 +58,13 @@ public class ChartController {
 	}
 	
 	private void chartSymbolData(String symbol) {
+		// If the data is already there, do nothing.
+		for(var series : dataChart.getData()) {
+			if(series.getName().equals(symbol)) {
+				return;
+			}
+		}
+		
 		ArrayList<PriceData> priceData = StockDatabase.getSymbolPriceData(symbol);
 		
 		if(priceData.size() == 0) {
@@ -74,13 +83,38 @@ public class ChartController {
 		dataChart.getData().removeIf(s -> {return s.getName().equals(symbol);});
 		dataChart.getData().add(pricePoints);
 		
-		for(var point : pricePoints.getData()) {
-			LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
-			Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
-			t.setShowDelay(javafx.util.Duration.millis(200));
-			point.getNode().getStyleClass().add("line-node");
-			Tooltip.install(point.getNode(), t);
+		Iterator<Series<Number, Double>> iter = dataChart.getData().iterator();
+		while(iter.hasNext()) {
+			Series<Number, Double> series = iter.next();
+			if(!symbolsTracked.contains(series.getName())) {
+				iter.remove();
+			}
+			else {
+				for(var point : series.getData()) {
+					LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
+					Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
+					t.setShowDelay(javafx.util.Duration.millis(200));
+					point.getNode().getStyleClass().add("line-node");
+					Tooltip.install(point.getNode(), t);
+				}
+			}
 		}
+//		for(Series<Number, Double> series : dataChart.getData()) {
+//			for(var point : series.getData()) {
+//				LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
+//				Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
+//				t.setShowDelay(javafx.util.Duration.millis(200));
+//				point.getNode().getStyleClass().add("line-node");
+//				Tooltip.install(point.getNode(), t);
+//			}
+//		}
+	}
+	
+	@FXML
+	private void resetDateRange(Event e) {
+		xAxis.setAutoRanging(true);
+		startDatePicker.setValue(null);
+		endDatePicker.setValue(null);
 	}
 	
 	@FXML
@@ -96,7 +130,7 @@ public class ChartController {
 		LocalDateTime end = LocalDateTime.of(endDatePicker.getValue(), LocalTime.NOON);
 		long daysBetween = Duration.between(start, end).toDays();
 		
-		if(daysBetween < 30) {
+		if(daysBetween < 1) {
 			// TODO: no range less than 30 days
 			return;
 		}

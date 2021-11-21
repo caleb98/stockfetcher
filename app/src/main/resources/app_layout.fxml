@@ -3,6 +3,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.SplitPane?>
@@ -13,13 +14,19 @@
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.RadioMenuItem?>
+<?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
 <?import javafx.geometry.Insets?>
+<?import java.net.URL?>
 
-<BorderPane xmlns:fx="http://javafx.com/fxml" prefWidth="1280" prefHeight="720" fx:controller="stockfetcher.ui.UIController" stylesheets="@app_style.css">
-
+<BorderPane fx:id="root" xmlns:fx="http://javafx.com/fxml" prefWidth="1280" prefHeight="720" fx:controller="stockfetcher.ui.UIController">
+	<stylesheets>
+		<URL value="@app_style.css"/>
+	</stylesheets>
+	
 	<!-- ROOT MENUBAR -->
 	<top>
     	<MenuBar>
@@ -38,6 +45,8 @@
     			</Menu>
     			<Menu text="Help">
     				<items>
+    					<RadioMenuItem text="Dark Mode" onAction="#toggleDarkMode"/>
+    					<SeparatorMenuItem/>
     					<MenuItem text="Manual"/>
     					<MenuItem text="About"/>
     				</items>
@@ -50,7 +59,7 @@
 		<SplitPane styleClass="test">
 			<items>
 				
-				<!-- RIGHT MENU -->
+				<!-- LEFT MENU -->
 				<SplitPane minWidth="200" maxWidth="300" orientation="VERTICAL">
 					<VBox alignment="TOP_CENTER">
 						<Label text="Stocks"/>
@@ -66,23 +75,57 @@
 				<VBox minWidth="400" SplitPane.resizableWithParent="true">
 					<TextField promptText="search..." alignment="CENTER"/>
 					<TabPane fx:id="chartTabs" VBox.vgrow="ALWAYS">
-						<tabs>	
-							<!--<Tab text="Chart 1">
-								<fx:include source="chart_layout.fxml"/>
-							</Tab>-->
-							<!-- New Tab "button" -->
+						<tabs>
 							<Tab fx:id="newTabButton" closable="false" text="+"/>
 						</tabs>
 					</TabPane>
 				</VBox>
 				
-				<!-- LEFT MENU -->
-				<SplitPane minWidth="200" maxWidth="300" orientation="VERTICAL">
-					<VBox minWidth="200" maxWidth="300" alignment="CENTER">
-						<Label text="Holding Info"/>
+				<!-- RIGHT MENU -->
+				<VBox minWidth="200" maxWidth="300">
+				
+					<!-- Company Info Box -->
+					<VBox fx:id="companyBox" alignment="TOP_LEFT" VBox.vgrow="ALWAYS" fillWidth="true">
+						<padding>
+							<Insets top="5" bottom="5" left="5" right="5"/>
+						</padding>
+						<VBox alignment="CENTER" fillWidth="true">
+							<Label fx:id="companyName" text="Company Info" style="-fx-font-size: 14px;"/>
+						</VBox>
+						<Separator minHeight="10"/>
+						<Label fx:id="noDataMessage" text="No company data available for this symbol."/>
+						<VBox fx:id="companyDataBox" visible="false">
+							<GridPane hgap="10" vgap="3">
+								<columnConstraints>
+									<ColumnConstraints halignment="RIGHT"/>
+									<ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
+								</columnConstraints>
+								<Label text="PE Ratio:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+								<Label fx:id="peRatio" text="0" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+								
+								<Label text="Shares Outstanding:" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+								<Label fx:id="sharesOutstanding" text="0" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+							</GridPane>
+							<Separator minHeight="10"/>
+							<Label text="Description:"/>
+							<Label fx:id="companyDescription" wrapText="true">
+								<padding>
+									<Insets left="10" right="10" top="3"/>
+								</padding>
+							</Label>
+						</VBox>
+					</VBox>
+					
+					<!-- ETF Holding Info Box -->
+					<VBox fx:id="holdingsBox" alignment="CENTER" VBox.vgrow="ALWAYS">
+						<padding>
+							<Insets top="5"/>
+						</padding>
+						<Label text="ETF Holding Info"/>
 						<ListView VBox.vgrow="ALWAYS" fx:id="holdingsList"/>
 					</VBox>
-				</SplitPane>
+					
+				</VBox>
 			</items>
 		</SplitPane>
 	</center>

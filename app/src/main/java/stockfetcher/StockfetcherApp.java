@@ -40,6 +40,8 @@ public class StockfetcherApp extends Application {
 		// Setup and show window
 		stage.setTitle("Stockfetcher");
 		stage.setScene(scene);
+		stage.setMinWidth(850);
+		stage.setMinHeight(600);
 		stage.show();
 	}
 

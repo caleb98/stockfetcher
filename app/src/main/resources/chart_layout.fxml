@@ -22,7 +22,7 @@
 	</LineChart>
 	<GridPane hgap="5">
 		<columnConstraints>
-			<ColumnConstraints />
+			<ColumnConstraints minWidth="100"/>
 			<ColumnConstraints halignment="RIGHT"/>
 			<ColumnConstraints hgrow="ALWAYS" fillWidth="true"/>
 			<ColumnConstraints halignment="RIGHT"/>

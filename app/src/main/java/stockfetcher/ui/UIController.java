@@ -1,13 +1,17 @@
 package stockfetcher.ui;
 
 import java.io.IOException;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Optional;
 
 import javafx.application.Platform;
-import javafx.collections.transformation.SortedList;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.concurrent.Task;
 import javafx.event.Event;
 import javafx.fxml.FXML;
@@ -16,9 +20,11 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Pair;
 import stockfetcher.api.CompanyData;
@@ -29,21 +35,36 @@ import stockfetcher.db.StockDatabase;
 
 public class UIController {
 	
+	private static final NumberFormat SHARES_FORMAT = NumberFormat.getNumberInstance();
+	
+	@FXML private BorderPane root;
+	
 	@FXML private ListView<String> stockList;
 	@FXML private ListView<String> etfList;
 	private String selectedSymbol = null;
-	private boolean isEtfSelected = false;
+	private BooleanProperty isEtfSelected = new SimpleBooleanProperty(false);
 
 	@FXML private TabPane chartTabs;
 	@FXML private Tab newTabButton;
 	
+	@FXML private VBox companyBox;
+	@FXML private VBox companyDataBox;
+	@FXML private Label noDataMessage;
+	@FXML private Label companyName;
+	@FXML private Label peRatio;
+	@FXML private Label sharesOutstanding;
+	@FXML private Label companyDescription;
+	private ObjectProperty<CompanyData> companyData = new SimpleObjectProperty<>(null);
+	
+	@FXML private VBox holdingsBox;
 	@FXML private ListView<String> holdingsList;
 
 	public void initialize() {
+		
 		// Setup relevant lists
 		updateStocksList();
 		updateEtfList();
-		updateHoldingsList();
+		updateHoldingInfo();
 		
 		// Add a chart tab
 		createNewTab();
@@ -52,6 +73,33 @@ public class UIController {
 		chartTabs.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab)->{
 			if(newTab == newTabButton) {
 				createNewTab();
+			}
+		});
+		
+		// Setup visibility for the right hand boxes
+		companyBox.managedProperty().bind(companyBox.visibleProperty());
+		companyBox.visibleProperty().bind(isEtfSelected.not());
+		companyDataBox.managedProperty().bind(companyDataBox.visibleProperty());
+		noDataMessage.managedProperty().bind(noDataMessage.visibleProperty());
+		
+		holdingsBox.managedProperty().bind(holdingsBox.visibleProperty());
+		holdingsBox.visibleProperty().bind(isEtfSelected);
+		
+		// Setup company data bindings
+		companyData.addListener((obs, oldValue, newValue)->{
+			if(newValue == null) {
+				companyDataBox.setVisible(false);
+				noDataMessage.setVisible(true);
+				companyName.setText("Company Info");
+			}
+			else {
+				peRatio.setText(String.valueOf(companyData.get().peRatio));
+				sharesOutstanding.setText(SHARES_FORMAT.format(companyData.get().sharesOutstanding));
+				companyDescription.setText(companyData.get().desc);
+				companyName.setText(companyData.get().name);
+				
+				companyDataBox.setVisible(true);
+				noDataMessage.setVisible(false);
 			}
 		});
 	}
@@ -68,8 +116,8 @@ public class UIController {
 		etfList.getItems().setAll(etfs);
 	}
 	
-	private void updateHoldingsList() {
-		if(isEtfSelected) {
+	private void updateHoldingInfo() {
+		if(isEtfSelected.get()) {
 			ArrayList<Pair<String, Double>> holdings = StockDatabase.getEtfHoldings(selectedSymbol);
 			holdingsList.getItems().clear();
 			for(var holding : holdings) {
@@ -87,6 +135,10 @@ public class UIController {
 		else {
 			holdingsList.getItems().setAll("Select an ETF to see holdings.");
 		}
+	}
+	
+	private void updateCompanyInfo() {
+		companyData.set(StockDatabase.getCompanyData(selectedSymbol));
 	}
 	
 	private void createNewTab() {
@@ -108,15 +160,15 @@ public class UIController {
 	@FXML
 	private void stockSelected(Event e) {
 		selectedSymbol = stockList.getSelectionModel().getSelectedItem();
-		isEtfSelected = false;
-		updateHoldingsList();
+		isEtfSelected.set(false);
+		updateCompanyInfo();
 	}
 	
 	@FXML
 	private void etfSelected(Event e) {
 		selectedSymbol = etfList.getSelectionModel().getSelectedItem();
-		isEtfSelected = true;
-		updateHoldingsList();
+		isEtfSelected.set(true);
+		updateHoldingInfo();
 	}
 	
 	@FXML
@@ -267,7 +319,17 @@ public class UIController {
 	
 	@FXML
 	private void updateStockData(Event e) {
-		
+		//TODO: this method!
+	}
+	
+	@FXML
+	private void toggleDarkMode(Event e) {
+		if(root.getStylesheets().contains("app_style_dark.css")) {
+			root.getStylesheets().remove("app_style_dark.css");
+		}
+		else {
+			root.getStylesheets().add("app_style_dark.css");
+		}
 	}
 	
 }

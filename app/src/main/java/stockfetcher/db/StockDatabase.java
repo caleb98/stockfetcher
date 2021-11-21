@@ -533,6 +533,35 @@ public final class StockDatabase {
 		return false;
 	}
 	
+	public static CompanyData getCompanyData(String symbol) {
+		logger.info("Loading company data for {} from database.", symbol);
+		int companyId = getCompanyId(symbol);
+		if(companyId == -1) {
+			return null;
+		}
+		
+		String sql = "SELECT * FROM companies WHERE company_id = " + companyId;
+		
+		try (
+			Statement stmt = conn.createStatement();
+		) {
+			ResultSet rs = stmt.executeQuery(sql);
+			rs.next();
+			return new CompanyData(
+				symbol, 
+				rs.getString("name"), 
+				rs.getString("description"), 
+				rs.getDouble("pe_ratio"), 
+				rs.getLong("shares_outstanding"), 
+				rs.getLong("shares_float"), 
+				rs.getLong("shares_short")
+			);
+		} catch (SQLException e) {
+			logger.error("Error loading company data for {}: {}", symbol, e.getMessage());
+			return null;
+		}
+	}
+	
 }
 
 

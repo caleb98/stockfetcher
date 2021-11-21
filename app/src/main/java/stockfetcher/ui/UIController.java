@@ -60,7 +60,6 @@ public class UIController {
 	@FXML private ListView<String> holdingsList;
 
 	public void initialize() {
-		
 		// Setup relevant lists
 		updateStocksList();
 		updateEtfList();

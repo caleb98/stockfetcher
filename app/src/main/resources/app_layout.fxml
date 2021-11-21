@@ -108,7 +108,7 @@
 							</GridPane>
 							<Separator minHeight="10"/>
 							<Label text="Description:"/>
-							<Label fx:id="companyDescription" wrapText="true">
+							<Label fx:id="companyDescription" wrapText="true" textAlignment="JUSTIFY">
 								<padding>
 									<Insets left="10" right="10" top="3"/>
 								</padding>

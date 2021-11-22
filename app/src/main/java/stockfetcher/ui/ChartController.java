@@ -51,63 +51,78 @@ public class ChartController {
 				LocalDate date = LocalDate.parse(stringDate, DATE_FORMAT);
 				return date.toEpochDay();
 			}
-		});		
-		
-		symbolsTracked.add("CRSR");
-		chartSymbolData("CRSR");
+		});
 	}
 	
-	private void chartSymbolData(String symbol) {
-		// If the data is already there, do nothing.
-		for(var series : dataChart.getData()) {
-			if(series.getName().equals(symbol)) {
-				return;
-			}
-		}
-		
-		ArrayList<PriceData> priceData = StockDatabase.getSymbolPriceData(symbol);
-		
-		if(priceData.size() == 0) {
-			// TODO: warn no data
-			return;
-		}
-		
-		XYChart.Series<Number, Double> pricePoints = new XYChart.Series<>();
-		pricePoints.setName(symbol);
-		for(PriceData point : priceData) {
-			long date = point.date.toEpochDay();
-			var dataPoint = new XYChart.Data<Number, Double>(date, point.adjClose);
-			pricePoints.getData().add(dataPoint);
-		}
-		
-		dataChart.getData().removeIf(s -> {return s.getName().equals(symbol);});
-		dataChart.getData().add(pricePoints);
-		
-		Iterator<Series<Number, Double>> iter = dataChart.getData().iterator();
+	private void refreshTrackedSymbols() {
+		// Remove untracked symbols from the data chart
+		var iter = dataChart.getData().iterator();
 		while(iter.hasNext()) {
-			Series<Number, Double> series = iter.next();
-			if(!symbolsTracked.contains(series.getName())) {
+			if(!symbolsTracked.contains(iter.next().getName())) {
 				iter.remove();
+				continue;
 			}
-			else {
-				for(var point : series.getData()) {
-					LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
-					Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
-					t.setShowDelay(javafx.util.Duration.millis(200));
-					point.getNode().getStyleClass().add("line-node");
-					Tooltip.install(point.getNode(), t);
+		}
+		
+		// Loop through all tracked symbols and add them if they
+		// aren't already present
+		for(String symbol : symbolsTracked) {
+			
+			// Check if symbol already charted
+			boolean isPresent = false;
+			for(var series : dataChart.getData()) {
+				if(series.getName().equals(symbol)) {
+					isPresent = true;
+					break;
 				}
 			}
+			
+			if(isPresent) {
+				continue;
+			}
+			
+			// Pull the data
+			ArrayList<PriceData> priceData = StockDatabase.getSymbolPriceData(symbol);
+			
+			if(priceData.size() == 0) {
+				// TODO: warn no data
+				continue;
+			}
+			
+			// Add data to the chart
+			XYChart.Series<Number, Double> pricePoints = new XYChart.Series<>();
+			pricePoints.setName(symbol);
+			for(PriceData point : priceData) {
+				long date = point.date.toEpochDay();
+				var dataPoint = new XYChart.Data<Number, Double>(date, point.adjClose);
+				pricePoints.getData().add(dataPoint);
+			}
+			
+			dataChart.getData().add(pricePoints);
+			
 		}
-//		for(Series<Number, Double> series : dataChart.getData()) {
-//			for(var point : series.getData()) {
-//				LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
-//				Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
-//				t.setShowDelay(javafx.util.Duration.millis(200));
-//				point.getNode().getStyleClass().add("line-node");
-//				Tooltip.install(point.getNode(), t);
-//			}
-//		}
+		
+		// Re-add tooltips to all the points
+		iter = dataChart.getData().iterator();
+		while(iter.hasNext()) {
+			
+			Series<Number, Double> series = iter.next();
+			System.out.println("\tUpdating " + series.getName());
+			
+			for(var point : series.getData()) {
+				
+				// Update style class (for visibility)
+				point.getNode().getStyleClass().add("line-node");
+				
+				// Add tooltip
+				LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
+				Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
+				t.setShowDelay(javafx.util.Duration.millis(200));
+				point.getNode().getProperties().put("pricedata-tooltip", t);
+				Tooltip.install(point.getNode(), t);
+				
+			}
+		}
 	}
 	
 	@FXML
@@ -170,16 +185,15 @@ public class ChartController {
 			for(int i = 0; i < newSymbolsArray.length; i++) {
 				newSymbolsArray[i] = newSymbolsArray[i].trim().toUpperCase();
 			}
+			
 			//TODO: check if new symbols are not in db
+			
 			symbolsTracked.clear();
 			for(String s : newSymbolsArray) {
 				symbolsTracked.add(s);
 			}
-			//TODO: update chart
 			
-			for(String symbol : symbolsTracked) {
-				chartSymbolData(symbol);
-			}
+			refreshTrackedSymbols();
 		});
 		dialog.show();
 	}

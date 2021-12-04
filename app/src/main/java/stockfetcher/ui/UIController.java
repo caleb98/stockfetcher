@@ -101,6 +101,10 @@ public class UIController {
 				noDataMessage.setVisible(false);
 			}
 		});
+		
+		// Select first stock
+		stockList.getSelectionModel().clearAndSelect(0);
+		stockSelected(null);
 	}
 	
 	private void updateStocksList() {
@@ -158,16 +162,22 @@ public class UIController {
 	
 	@FXML
 	private void stockSelected(Event e) {
+		String old = selectedSymbol;
 		selectedSymbol = stockList.getSelectionModel().getSelectedItem();
 		isEtfSelected.set(false);
-		updateCompanyInfo();
+		if(old == null || !old.equals(selectedSymbol)) {
+			updateCompanyInfo();
+		}
 	}
 	
 	@FXML
 	private void etfSelected(Event e) {
+		String old = selectedSymbol;
 		selectedSymbol = etfList.getSelectionModel().getSelectedItem();
 		isEtfSelected.set(true);
-		updateHoldingInfo();
+		if(old == null || !old.equals(selectedSymbol)) {
+			updateHoldingInfo();
+		}
 	}
 	
 	@FXML

@@ -10,6 +10,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import stockfetcher.db.StockDatabase;
 
 public class AddTrackedStockDialog extends Dialog<ArrayList<String>> {
 
@@ -17,7 +18,7 @@ public class AddTrackedStockDialog extends Dialog<ArrayList<String>> {
 		// Setup dialog
 		setTitle("New Tracked Symol");
 		setHeaderText("Enter the new symbol(s) you would like to track.\n"
-				+ "Multiple symbols should be separated with a space");
+				+ "Multiple symbols should be separated with a comma.");
 		
 		getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
 		

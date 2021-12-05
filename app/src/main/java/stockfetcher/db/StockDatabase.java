@@ -9,12 +9,16 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
 
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableSet;
 import javafx.util.Pair;
 import stockfetcher.api.CompanyData;
 import stockfetcher.api.EtfData;
@@ -36,6 +40,8 @@ public final class StockDatabase {
 	private static final HashMap<String, Integer> symbolIdMap = new HashMap<>();
 	private static final HashMap<String, Integer> companyIdMap = new HashMap<>();
 	private static final HashMap<String, Integer> etfIdMap = new HashMap<>();
+	
+	private static ObservableSet<String> trackedSymbols = FXCollections.observableSet();
 	
 	private StockDatabase() {}
 	
@@ -116,6 +122,11 @@ public final class StockDatabase {
 			+ ")"
 		);
 		
+		updateTrackedSymbolsList();
+	}
+	
+	public static ObservableSet<String> trackedSymbolsProperty() {
+		return trackedSymbols;
 	}
 	
 	public static Connection getConnection() {
@@ -406,47 +417,11 @@ public final class StockDatabase {
 			prep.executeBatch();
 			prep.close();
 			stmt.close();
+			
+			updateTrackedSymbolsList();
 		} catch (SQLException e) {
 			logger.error("Error while attempting to insert price data: {}", e.getMessage());
 		}
-	}
-	
-	public static ArrayList<String> getAllStockSymbols() {
-		logger.info("Loading all stock symbols from database.");
-		ArrayList<String> symbols = new ArrayList<>();
-		
-		String sql = "SELECT symbol FROM companies JOIN symbols ON symbols.symbol_id = companies.symbol_id";
-		try(
-			Statement stmt = conn.createStatement();
-			ResultSet rs = stmt.executeQuery(sql);
-		) {
-			while(rs.next()) {
-				symbols.add(rs.getString("symbol"));
-			}
-		} catch (SQLException e) {
-			logger.error("Error retreiving company stock symbols from database: {}", e.getMessage());
-		}
-		
-		return symbols;
-	}
-	
-	public static ArrayList<String> getAllETFSymbols() {
-		logger.info("Loading all ETF symbols from database.");
-		ArrayList<String> symbols = new ArrayList<>();
-		
-		String sql = "SELECT symbol FROM etfs JOIN symbols ON symbols.symbol_id = etfs.symbol_id";
-		try(
-			Statement stmt = conn.createStatement();
-			ResultSet rs = stmt.executeQuery(sql);
-		) {
-			while(rs.next()) {
-				symbols.add(rs.getString("symbol"));
-			}
-		} catch (SQLException e) {
-			logger.error("Error retreiving ETF symbols from database: {}", e.getMessage());
-		}
-		
-		return symbols;
 	}
 	
 	public static ArrayList<PriceData> getSymbolPriceData(String symbol) {
@@ -559,6 +534,29 @@ public final class StockDatabase {
 		} catch (SQLException e) {
 			logger.error("Error loading company data for {}: {}", symbol, e.getMessage());
 			return null;
+		}
+	}
+	
+	private static void updateTrackedSymbolsList() {
+		String sql = "SELECT symbols.symbol as symbol FROM prices\n"
+				+ "JOIN symbols ON symbols.symbol_id = prices.symbol_id\n"
+				+ "GROUP BY symbols.symbol_id";
+		
+		try (
+			Statement stmt = conn.createStatement();
+		) {
+			ResultSet rs = stmt.executeQuery(sql);
+			final HashSet<String> data = new HashSet<>();
+			while(rs.next()) {
+				data.add(rs.getString("symbol"));
+			}
+			Platform.runLater(()->{
+				for(String s : data) {
+					trackedSymbols.add(s);
+				}
+			});
+		} catch (SQLException e) {
+			logger.error("Error updating priced symbols list: {}", e.getMessage());
 		}
 	}
 	

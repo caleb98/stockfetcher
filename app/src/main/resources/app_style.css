@@ -11,3 +11,24 @@
 .tooltip {
 	-fx-font-size: 12pt;
 }
+
+.available-action {
+	-fx-font-size: 12pt;
+	-fx-background-insets: 0, 0;
+	-fx-background-radius: 0, 0;
+	-fx-border-color: gray;
+}
+
+.available-action-bottom {
+	-fx-background-radius: 0 0 5 5;
+	-fx-border-radius: 0 0 5 5;
+}
+
+.selected-action {
+	-fx-background-color: rgb(235, 235, 235);
+	-fx-font-weight: bold;
+}
+
+.tab-title-edit {
+	-fx-background-color: rgba(0, 0, 0, 0);
+}

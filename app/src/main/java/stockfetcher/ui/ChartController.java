@@ -6,11 +6,14 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.HashSet;
 
+import javafx.application.Platform;
 import javafx.beans.property.StringProperty;
+import javafx.concurrent.Task;
 import javafx.event.Event;
 import javafx.fxml.FXML;
+import javafx.scene.Cursor;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
@@ -34,7 +37,7 @@ public class ChartController {
 	@FXML private DatePicker startDatePicker;
 	@FXML private DatePicker endDatePicker;
 	
-	private ArrayList<String> symbolsTracked = new ArrayList<>();
+	private HashSet<String> symbolsTracked = new HashSet<>();
 	
 	public void initialize() {		
 		// Formatter for converting x axis date to numbers/strings and vice versa
@@ -64,65 +67,80 @@ public class ChartController {
 			}
 		}
 		
-		// Loop through all tracked symbols and add them if they
-		// aren't already present
-		for(String symbol : symbolsTracked) {
-			
-			// Check if symbol already charted
-			boolean isPresent = false;
-			for(var series : dataChart.getData()) {
-				if(series.getName().equals(symbol)) {
-					isPresent = true;
-					break;
+		// Task for pulling data from database
+		var task = new Task<Void>() {
+			@Override
+			protected Void call() {
+				Platform.runLater(()->{
+					dataChart.getScene().setCursor(Cursor.WAIT);
+				});
+				
+				// Loop through all tracked symbols and add them if they
+				// aren't already present
+				for(String symbol : symbolsTracked) {
+					
+					// Check if symbol already charted
+					boolean isPresent = false;
+					for(var series : dataChart.getData()) {
+						if(series.getName().equals(symbol)) {
+							isPresent = true;
+							break;
+						}
+					}
+					
+					if(isPresent) {
+						continue;
+					}
+					
+					// Pull the data
+					ArrayList<PriceData> priceData = StockDatabase.getSymbolPriceData(symbol);
+					
+					if(priceData.size() == 0) {
+						// TODO: warn no data
+						continue;
+					}
+					
+					// Add data to the chart
+					Platform.runLater(()->{
+						XYChart.Series<Number, Double> pricePoints = new XYChart.Series<>();
+						pricePoints.setName(symbol);
+						for(PriceData point : priceData) {
+							long date = point.date.toEpochDay();
+							var dataPoint = new XYChart.Data<Number, Double>(date, point.adjClose);
+							pricePoints.getData().add(dataPoint);
+						}
+						
+						dataChart.getData().add(pricePoints);
+					});					
 				}
-			}
-			
-			if(isPresent) {
-				continue;
-			}
-			
-			// Pull the data
-			ArrayList<PriceData> priceData = StockDatabase.getSymbolPriceData(symbol);
-			
-			if(priceData.size() == 0) {
-				// TODO: warn no data
-				continue;
-			}
-			
-			// Add data to the chart
-			XYChart.Series<Number, Double> pricePoints = new XYChart.Series<>();
-			pricePoints.setName(symbol);
-			for(PriceData point : priceData) {
-				long date = point.date.toEpochDay();
-				var dataPoint = new XYChart.Data<Number, Double>(date, point.adjClose);
-				pricePoints.getData().add(dataPoint);
-			}
-			
-			dataChart.getData().add(pricePoints);
-			
-		}
-		
-		// Re-add tooltips to all the points
-		iter = dataChart.getData().iterator();
-		while(iter.hasNext()) {
-			
-			Series<Number, Double> series = iter.next();
-			System.out.println("\tUpdating " + series.getName());
-			
-			for(var point : series.getData()) {
 				
-				// Update style class (for visibility)
-				point.getNode().getStyleClass().add("line-node");
-				
-				// Add tooltip
-				LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
-				Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
-				t.setShowDelay(javafx.util.Duration.millis(200));
-				point.getNode().getProperties().put("pricedata-tooltip", t);
-				Tooltip.install(point.getNode(), t);
-				
+				// Re-add tooltips to all the points
+				Platform.runLater(()->{
+					var iter = dataChart.getData().iterator();
+					while(iter.hasNext()) {
+						Series<Number, Double> series = iter.next();
+						
+						for(var point : series.getData()) {
+							
+							// Update style class (for visibility)
+							point.getNode().getStyleClass().add("line-node");
+							
+							// Add tooltip
+							LocalDate date = LocalDate.ofEpochDay((Long) point.getXValue());
+							Tooltip t = new Tooltip(String.format("%s: $%.2f", date.format(DATE_FORMAT), point.getYValue()));
+							t.setShowDelay(javafx.util.Duration.millis(200));
+							point.getNode().getProperties().put("pricedata-tooltip", t);
+							Tooltip.install(point.getNode(), t);
+							
+						}
+					}
+					
+					dataChart.getScene().setCursor(Cursor.DEFAULT);
+				});
+				return null;
 			}
-		}
+		};
+		new Thread(task).start();
 	}
 	
 	@FXML
@@ -196,6 +214,11 @@ public class ChartController {
 			refreshTrackedSymbols();
 		});
 		dialog.show();
+	}
+	
+	public void addChartSymbol(String symbol) {
+		symbolsTracked.add(symbol);
+		refreshTrackedSymbols();
 	}
 	
 	public String getChartName() {

@@ -79,3 +79,8 @@
 .scroll-bar > .decrement-button:pressed > .decrement-arrow {
     -fx-background-color: -fx-mark-highlight-color, rgb(255, 255, 255);
 }
+
+.selected-action {
+	-fx-background-color: rgb(0, 128, 64);
+	-fx-text-fill: black;
+}

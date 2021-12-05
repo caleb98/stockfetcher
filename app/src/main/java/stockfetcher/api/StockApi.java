@@ -40,7 +40,7 @@ public final class StockApi {
 	private static final Logger logger = LoggerFactory.getLogger(StockApi.class);
 	
 	// Alphavantage API data
-	private static final String API_KEY = "PXZ12RS30X92UU2U";
+	private static final String API_KEY = "K6657SE3OT4SBIQU"; // alternative: PXZ12RS30X92UU2U
 	private static final String API_ROOT = "https://www.alphavantage.co/query?";
 	
 	private static final Gson gson = new GsonBuilder()
@@ -193,7 +193,7 @@ public final class StockApi {
 		params.put("function", "OVERVIEW");
 		params.put("symbol", symbol);
 		params.put("apikey", API_KEY);
-		
+
 		// Make the request
 		HttpRequest request = getRequest(params);
 		HttpResponse<String> response;
@@ -212,22 +212,34 @@ public final class StockApi {
 			logger.error("Retrieving company data for {} failed. Requested symbol likely does not exist.", symbol);
 			return null;
 		}
-		else {
-			logger.info("Company info for {} retrieved successfully.", symbol);
+		
+		// If it doesn't have a name/desc field, API calls exceeded
+		else if(!data.has("Name") || !data.has("Description")) {
+			logger.error("Retrieving company data for {} failed: {}", symbol, data.has("Note") ? data.get("Note") : "Returned data is incomplete.");
+			return null;
 		}
+		
+		// Data should be okay
+		logger.info("Company info for {} retrieved successfully.", symbol);
 		
 		// Pull company data from Json
 		String name = data.get("Name").getAsString();
 		String desc = data.get("Description").getAsString();
-		double peRatio = data.get("PERatio").getAsDouble();
-		long sharesOutstanding = data.get("SharesOutstanding").getAsLong();
+		
+		double peRatio = -1;
+		if(data.has("PERatio") && !data.get("PERatio").getAsString().equals("None")) 
+			peRatio = data.get("PERatio").getAsDouble();
+		
+		long sharesOutstanding = -1;
+		if(data.has("SharesOutstanding") && !data.get("PERatio").getAsString().equals("None")) 
+			sharesOutstanding = data.get("SharesOutstanding").getAsLong();
 		
 		long sharesFloat = -1;
-		if(data.has("SharesFloat"))
+		if(data.has("SharesFloat") && !data.get("SharesFloat").getAsString().equals("None"))
 			sharesFloat = data.get("SharesFloat").getAsLong();
 		
 		long sharesShort = -1;
-		if(data.has("SharesFloat"))
+		if(data.has("ShareShort") && !data.get("ShareShort").getAsString().equals("None"))
 			sharesShort = data.get("SharesShort").getAsLong();
 		
 		return new CompanyData(symbol, name, desc, peRatio, sharesOutstanding, sharesFloat, sharesShort);

@@ -6,30 +6,43 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.concurrent.Task;
+import javafx.collections.SetChangeListener.Change;
 import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 import javafx.util.Pair;
 import stockfetcher.api.CompanyData;
 import stockfetcher.api.EtfData;
-import stockfetcher.api.PriceData;
 import stockfetcher.api.StockApi;
 import stockfetcher.db.StockDatabase;
 
@@ -39,11 +52,14 @@ public class UIController {
 	
 	@FXML private BorderPane root;
 	
-	@FXML private ListView<String> stockList;
-	@FXML private ListView<String> etfList;
+	@FXML private ListView<String> symbolList;
 	private String selectedSymbol = null;
 	private BooleanProperty isEtfSelected = new SimpleBooleanProperty(false);
 
+	@FXML private TextField searchBar;
+	@FXML private VBox actionList;
+	private ArrayList<AppAction> availableActions = new ArrayList<>();
+	private int selectedAction = -1;
 	@FXML private TabPane chartTabs;
 	@FXML private Tab newTabButton;
 	
@@ -58,11 +74,17 @@ public class UIController {
 	
 	@FXML private VBox holdingsBox;
 	@FXML private ListView<String> holdingsList;
-
+	
 	public void initialize() {
+		// Setup event handler
+		root.addEventFilter(KeyEvent.KEY_PRESSED, new SearchFocusHandler());
+		searchBar.addEventHandler(KeyEvent.KEY_PRESSED, new ActionSelectHanlder());
+		
+		// Prevent action list from eating mouse events for the chart
+		actionList.setMaxHeight(Region.USE_PREF_SIZE);
+		
 		// Setup relevant lists
-		updateStocksList();
-		updateEtfList();
+		updateSymbolList();
 		updateHoldingInfo();
 		
 		// Add a chart tab
@@ -75,6 +97,39 @@ public class UIController {
 			}
 		});
 		
+		// Setup the symbols context menus
+		symbolList.setCellFactory(lv -> {
+			ListCell<String> cell = new ListCell<>();
+			
+			MenuItem addToChart = new MenuItem("Add to Current Chart");
+			addToChart.setOnAction(e -> {
+				ChartController controller = (ChartController) chartTabs.getSelectionModel().getSelectedItem().getProperties().get("chartController");
+				controller.addChartSymbol(cell.getItem());
+			});
+			
+			MenuItem addNewChart = new MenuItem("Add to New Chart");
+			addNewChart.setOnAction(e -> {
+				createNewTab();
+				ChartController controller = (ChartController) chartTabs.getSelectionModel().getSelectedItem().getProperties().get("chartController");
+				controller.addChartSymbol(cell.getItem());
+				controller.setChartName(cell.getItem());
+			});
+			
+			ContextMenu menu = new ContextMenu(addToChart, addNewChart);
+			
+			cell.textProperty().bind(cell.itemProperty());
+			cell.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
+				if(isNowEmpty) {
+					cell.setContextMenu(null);
+				}
+				else {
+					cell.setContextMenu(menu);
+				}
+			});
+			
+			return cell;
+		});
+		
 		// Setup visibility for the right hand boxes
 		companyBox.managedProperty().bind(companyBox.visibleProperty());
 		companyBox.visibleProperty().bind(isEtfSelected.not());
@@ -84,6 +139,15 @@ public class UIController {
 		holdingsBox.managedProperty().bind(holdingsBox.visibleProperty());
 		holdingsBox.visibleProperty().bind(isEtfSelected);
 		
+		isEtfSelected.addListener((obs, old, isEtf) -> {
+			if(isEtf) {
+				updateHoldingInfo();
+			}
+			else {
+				updateCompanyInfo();
+			}
+		});
+		
 		// Setup company data bindings
 		companyData.addListener((obs, oldValue, newValue)->{
 			if(newValue == null) {
@@ -92,8 +156,8 @@ public class UIController {
 				companyName.setText("Company Info");
 			}
 			else {
-				peRatio.setText(String.valueOf(companyData.get().peRatio));
-				sharesOutstanding.setText(SHARES_FORMAT.format(companyData.get().sharesOutstanding));
+				peRatio.setText(companyData.get().peRatio == -1 ? "N/A" : String.valueOf(companyData.get().peRatio));
+				sharesOutstanding.setText(companyData.get().sharesOutstanding == -1 ? "N/A" : SHARES_FORMAT.format(companyData.get().sharesOutstanding));
 				companyDescription.setText(companyData.get().desc);
 				companyName.setText(companyData.get().name);
 				
@@ -102,21 +166,44 @@ public class UIController {
 			}
 		});
 		
-		// Select first stock
-		stockList.getSelectionModel().clearAndSelect(0);
-		stockSelected(null);
+		// Setup search bar
+		searchBar.textProperty().addListener((obs, oldText, newText) -> {
+			if(!oldText.trim().equals(newText.trim())) {
+				searchInputChanged(newText, oldText.trim().equals(""));
+			}
+		});
+		
+		// Stock List & ETF List selection
+		symbolList.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+			symbolSelected();
+		});
+		symbolList.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
+			symbolSelected();
+		});
+		
+		// Whenever price data is changed, update our etfs/stocks
+		StockDatabase.trackedSymbolsProperty().addListener((Change<? extends String> c) -> {
+			if(c.wasAdded()) {
+				String added = c.getElementAdded();
+				if(!symbolList.getItems().contains(added)) {
+					symbolList.getItems().add(added);
+					Collections.sort(symbolList.getItems());
+				}
+			}
+			else if(c.wasRemoved()) {
+				//TODO: removed
+			}
+		});
+		
+		// Add available actions
+		availableActions.add(new SearchAction());
+		availableActions.add(new AddNewSymbolAction());
 	}
 	
-	private void updateStocksList() {
-		ArrayList<String> stocks = StockDatabase.getAllStockSymbols();
+	private void updateSymbolList() {
+		ArrayList<String> stocks = new ArrayList<>(StockDatabase.trackedSymbolsProperty());
 		Collections.sort(stocks);
-		stockList.getItems().setAll(stocks);
-	}
-	
-	private void updateEtfList() {
-		ArrayList<String> etfs = StockDatabase.getAllETFSymbols();
-		Collections.sort(etfs);
-		etfList.getItems().setAll(etfs);
+		symbolList.getItems().setAll(stocks);
 	}
 	
 	private void updateHoldingInfo() {
@@ -141,7 +228,9 @@ public class UIController {
 	}
 	
 	private void updateCompanyInfo() {
-		companyData.set(StockDatabase.getCompanyData(selectedSymbol));
+		if(selectedSymbol != null) {
+			companyData.set(StockDatabase.getCompanyData(selectedSymbol));
+		}
 	}
 	
 	private void createNewTab() {
@@ -150,8 +239,44 @@ public class UIController {
 			VBox tabContents = loader.<VBox>load();
 			ChartController chart = loader.getController();
 			
-			Tab newTab = new Tab("New Tab", tabContents);
-			newTab.textProperty().bind(chart.chartNameProperty());
+			// Bindings for editing the tab name
+			final Label tabLabel = new Label();
+			tabLabel.setStyle("-fx-padding: 2 10 2 10");
+			final TextField tabTitleEdit = new TextField();
+			tabTitleEdit.getStyleClass().add("tab-title-edit");
+			tabLabel.textProperty().bindBidirectional(tabTitleEdit.textProperty());
+			tabLabel.textProperty().bindBidirectional(chart.chartNameProperty());
+			
+			// Setup tab
+			Tab newTab = new Tab();
+			newTab.setContent(tabContents);
+			newTab.setGraphic(tabLabel);
+			tabLabel.setOnMouseClicked(e -> {
+				System.out.flush();
+				if(e.getClickCount() == 2) {
+					newTab.setGraphic(tabTitleEdit);
+					tabTitleEdit.selectAll();
+					tabTitleEdit.requestFocus();
+				}
+				else if(e.getButton() == MouseButton.MIDDLE) {
+					chartTabs.getTabs().remove(newTab);
+				}
+			});
+			
+			tabTitleEdit.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+				if(!isFocused) {
+					newTab.setGraphic(tabLabel);
+				}
+			});
+			
+			tabTitleEdit.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
+				if(e.getCode() == KeyCode.ENTER) {
+					root.requestFocus();
+				}
+			});
+			
+			// Add tab and select
+			newTab.getProperties().put("chartController", chart);
 			chartTabs.getTabs().add(chartTabs.getTabs().size() - 1, newTab);
 			chartTabs.getSelectionModel().select(chartTabs.getTabs().size() - 2);
 			
@@ -160,23 +285,22 @@ public class UIController {
 		}
 	}
 	
-	@FXML
-	private void stockSelected(Event e) {
+	private void symbolSelected() {
 		String old = selectedSymbol;
-		selectedSymbol = stockList.getSelectionModel().getSelectedItem();
-		isEtfSelected.set(false);
+		selectedSymbol = symbolList.getSelectionModel().getSelectedItem();
 		if(old == null || !old.equals(selectedSymbol)) {
-			updateCompanyInfo();
-		}
-	}
-	
-	@FXML
-	private void etfSelected(Event e) {
-		String old = selectedSymbol;
-		selectedSymbol = etfList.getSelectionModel().getSelectedItem();
-		isEtfSelected.set(true);
-		if(old == null || !old.equals(selectedSymbol)) {
-			updateHoldingInfo();
+			if(StockDatabase.isEtfPresent(selectedSymbol)) {
+				isEtfSelected.set(true);
+				updateHoldingInfo();
+			}
+			else if(StockDatabase.isCompanyPresent(selectedSymbol)) {
+				isEtfSelected.set(false);
+				updateCompanyInfo();
+			}
+			else {
+				isEtfSelected.set(false);
+				updateCompanyInfo();
+			}
 		}
 	}
 	
@@ -190,10 +314,7 @@ public class UIController {
 		AddTrackedStockDialog dialog = new AddTrackedStockDialog();
 		
 		Optional<ArrayList<String>> result = dialog.showAndWait();
-		result.ifPresent(symbolsList -> {
-			final ProgressDialog progress = new ProgressDialog("Adding symbols...");
-			progress.show();
-		
+		result.ifPresent(symbolsList -> {		
 			// Check for symbols already in the database
 			Iterator<String> symbolsIter = symbolsList.iterator();
 			while(symbolsIter.hasNext()) {
@@ -216,114 +337,90 @@ public class UIController {
 				}
 			}
 			
-			// Loop through all the symbols to add
-			var task = new Task<Void>() {
-				public Void call() {
-					int processed = 0;
-					for(String symbol : symbolsList) {
-						
-						// Fetch price data
-						Platform.runLater(()->{
-							progress.setInfo("Downloading price data for " + symbol + "...");
-						});
-						PriceData[] data = StockApi.getStockPriceData(symbol, true);
-						updateProgress(processed + 1.0 / 3.0, symbolsList.size());
-						
-						// Check symbol was valid
-						if(data == null) {
-							// TODO: actual error handling
-							continue;
-						}
-						
-						// Add the price data
-						Platform.runLater(()->{
-							progress.setInfo(String.format(
-								"Adding price data for %s to database (%d entries)...", 
-								symbol,
-								data.length
-							));
-						});
-						StockDatabase.addPriceData(data);
-						updateProgress(processed + 2.0 / 3.0, symbolsList.size());
-						
-						// Check whether it was an etf or company, and add
-						// data as appropriate
-						try {
-							Platform.runLater(()->{
-								progress.setInfo("Checking if " + symbol + " is a stock or ETF...");
-							});
-							if(StockApi.isSymbolCompany(symbol)) {
-								Platform.runLater(()->{
-									progress.setInfo(String.format(
-										"Downloading company data for %s...",
-										symbol
-									));
-								});
-								CompanyData cData = StockApi.getCompanyOverview(symbol);
-								
-								// Check that company data was retrieved successfully
-								if(cData == null) {
-									//TODO: warn user
-									continue;
-								}
-								
-								// Insert the data in the database
-								Platform.runLater(()->{
-									progress.setInfo(String.format(
-										"Adding company data for %s (%s) to database...",
-										cData.name,
-										symbol
-									));
-								});
-								StockDatabase.addCompanyData(cData);
-								
-								// Update stock list
-								Platform.runLater(()->{updateStocksList();});
-							}
-							else if(StockApi.isSymbolETF(symbol)) {
-								Platform.runLater(()->{
-									progress.setInfo(String.format(
-										"Downloading ETF data for %s...",
-										symbol
-									));
-								});
-								EtfData eData = StockApi.getEtfOverview(symbol);
-								
-								// Check that etf data was retrieved successfully
-								if(eData == null) {
-									//TODO: warn user 
-									continue;
-								}
-								
-								// Add data to the database
-								Platform.runLater(()->{
-									progress.setInfo(String.format(
-										"Adding ETF data for %s (%s) to database...",
-										eData.name,
-										symbol
-									));
-								});
-								StockDatabase.addEtfData(eData);
-								
-								// Update etf list
-								Platform.runLater(()->{updateEtfList();});
-							}
-						} catch (IOException | InterruptedException e1) {
-							// TODO: log this error/handle appropriately
-							e1.printStackTrace();
-						}
-						updateProgress(++processed, symbolsList.size());
-					}
-
-					Platform.runLater(()->{
-						progress.setInfo("Complete!");
-					});
-					return null;
-				}
-			};
-			progress.progressProperty().bind(task.progressProperty());
-			new Thread(task).start();
+			Utils.downloadStockData(symbolsList.toArray(new String[0]));
 		});
+	}
+
+	private void searchInputChanged(String newInput, boolean useTransition) {
+		// If input empty, clear
+		if(newInput.equals("")) {
+			actionList.getChildren().clear();
+			selectedAction = -1;
+			return;
+		}
+		
+		// Filter available actions
+		var filteredActions = availableActions.stream()
+				.filter(a -> a.isApplicable(newInput))
+				.collect(Collectors.toList());
+
+		// Create dropdown menu
+		var dropdown = new ArrayList<TextField>();
+		int pos = 0;
+		for(AppAction a : filteredActions) {
+			var tf = new TextField(a.getActionName() + ": " + newInput);
+			tf.getStyleClass().add("available-action");
+			if(pos == filteredActions.size() - 1) {
+				tf.getStyleClass().add("available-action-bottom");
+			}
+			tf.getProperties().put("action", a);
+			tf.setEditable(false);
+			dropdown.add(tf);
+			pos++;
+		}
+		
+		// Check that there are applicable actions
+		if(dropdown.size() > 0) {
+			// Select first action if none selected previously
+			// or if filter made previous selection invalid
+			if(selectedAction == -1 || selectedAction >= dropdown.size()) {
+				selectedAction = 0;
+			}
+
+			// Set style for selected element
+			dropdown.get(selectedAction).getStyleClass().add("selected-action");
+			
+			// Set vbox contents
+			actionList.getChildren().setAll(dropdown);
+			if(useTransition) {
+				FadeTransition transition = new FadeTransition(Duration.millis(200), actionList);
+				transition.setFromValue(0);
+				transition.setToValue(1);
+				transition.setInterpolator(Interpolator.EASE_BOTH);
+				transition.play();
+			}
+		}
+		else {
+			selectedAction = -1;
+		}
+		
+	}
+	
+	@FXML
+	private void refreshCompanyData(Event e) {
+		CompanyData data = StockApi.getCompanyOverview(selectedSymbol);
+		if(data == null) {
+			// Just in case, check that the symbol isn't an etf
+			EtfData etfData = StockApi.getEtfOverview(selectedSymbol);
+			if(etfData != null) {
+				// Actually was an etf
+				StockDatabase.addEtfData(etfData);
+				selectedSymbol = "";
+				symbolSelected();
+			}
+			else {
+				// Not an etf and company data couldn't be retrieved, so just warn the user
+				Alert alert = new Alert(
+					AlertType.ERROR,
+					"There was a problem downloading the company data.\nThe API rate limit may have been exceeded. Please try again later."
+				);
+				alert.show();
+			}
+			return;
+		}
+		
+		StockDatabase.addCompanyData(data);
+		updateCompanyInfo();
 	}
 	
 	@FXML
@@ -339,6 +436,123 @@ public class UIController {
 		else {
 			root.getStylesheets().add("app_style_dark.css");
 		}
+	}
+	
+	private class SearchFocusHandler implements EventHandler<KeyEvent> {
+
+		@Override
+		public void handle(KeyEvent event) {
+			if(event.isControlDown() && event.isShiftDown() && event.getCode() == KeyCode.P) {
+				searchBar.requestFocus();
+			}
+			else if(event.getCode() == KeyCode.ESCAPE) {
+				searchBar.clear();
+				root.requestFocus();
+			}
+		}
+		
+	}
+	
+	private class ActionSelectHanlder implements EventHandler<KeyEvent> {
+		
+		@Override
+		public void handle(KeyEvent event) {
+			if(event.getCode() == KeyCode.DOWN || event.getCode() == KeyCode.TAB) {
+				// Remove selected from previous action
+				actionList.getChildren().get(selectedAction).getStyleClass().remove("selected-action");
+				
+				// Update selected action value
+				selectedAction++;
+				if(actionList.getChildren().size() == 0) {
+					selectedAction = -1;
+				}
+				else if(selectedAction >= actionList.getChildren().size()) {
+					selectedAction = 0;
+				}
+				
+				// Add style class to new selection
+				actionList.getChildren().get(selectedAction).getStyleClass().add("selected-action");
+				
+				event.consume();
+			}
+			else if(event.getCode() == KeyCode.UP || (event.isShiftDown() && event.getCode() == KeyCode.TAB)) {
+				// Remove selected from previous action
+				actionList.getChildren().get(selectedAction).getStyleClass().remove("selected-action");
+				
+				// Update selected action value
+				selectedAction--;
+				if(actionList.getChildren().size() == 0) {
+					selectedAction = -1;
+				}
+				else if(selectedAction < 0) {
+					selectedAction = actionList.getChildren().size() - 1;
+				}
+				
+				// Add style class to new selection
+				actionList.getChildren().get(selectedAction).getStyleClass().add("selected-action");
+				
+				event.consume();
+			}
+			else if(event.getCode() == KeyCode.ENTER) {
+				// Get the action and run
+				AppAction action = (AppAction) actionList.getChildren().get(selectedAction).getProperties().get("action");
+				action.execute(searchBar.getText());
+				
+				// Clear search
+				searchBar.clear();
+				root.requestFocus();
+			}
+		}
+		
+	}
+	
+	private class SearchAction implements AppAction {
+
+		@Override
+		public String getActionName() {
+			return "Search";
+		}
+		
+		@Override
+		public boolean isApplicable(String currentInput) {
+			return !currentInput.trim().contains(" ");
+		}
+
+		@Override
+		public void execute(String input) {
+			input = input.trim().toUpperCase();
+			if(symbolList.getItems().contains(input)) {
+				symbolList.getSelectionModel().select(input);
+				// TODO: show graph?
+			}
+			
+			// symbol not found, see if the user wants to pull the data
+			else {
+				var alert = new LoadNonpresentSymbolDialog(input);
+				alert.showAndDownload();
+			}
+		}
+		
+	}
+	
+	private class AddNewSymbolAction implements AppAction {
+
+		@Override
+		public String getActionName() {
+			return "Track New Symbol";
+		}
+
+		@Override
+		public boolean isApplicable(String currentInput) {
+			return !currentInput.trim().contains(" ");
+		}
+
+		@Override
+		public void execute(String input) {
+			input = input.trim().toUpperCase();
+			Utils.downloadStockData(input);
+		}
+		
 	}
 	
 }

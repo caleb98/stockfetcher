@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.DatePicker?>
@@ -10,6 +12,7 @@
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuItem?>
@@ -38,9 +41,8 @@
     			</Menu>
     			<Menu text="Edit">
     				<items>
-    					<MenuItem text="Add Stock/ETF" onAction="#addNewStock"/>
+    					<MenuItem text="Add Symbol" onAction="#addNewStock"/>
     					<MenuItem text="Manual Update" onAction="#updateStockData"/>
-    					<MenuItem text="Visualize"/>
     				</items>
     			</Menu>
     			<Menu text="Help">
@@ -62,23 +64,26 @@
 				<!-- LEFT MENU -->
 				<SplitPane minWidth="200" maxWidth="300" orientation="VERTICAL">
 					<VBox alignment="TOP_CENTER">
-						<Label text="Stocks"/>
-						<ListView fx:id="stockList" VBox.vgrow="ALWAYS" onMouseClicked="#stockSelected"/>
-					</VBox>
-					<VBox alignment="TOP_CENTER">
-						<Label text="ETFs"/>
-						<ListView fx:id="etfList" VBox.vgrow="ALWAYS" onMouseClicked="#etfSelected"/>
+						<Label text="Symbols"/>
+						<ListView fx:id="symbolList" VBox.vgrow="ALWAYS"/>
 					</VBox>
 				</SplitPane>
 				
 				<!-- CHART/SEARCH DISPLAY -->
 				<VBox minWidth="400" SplitPane.resizableWithParent="true">
-					<TextField promptText="search..." alignment="CENTER"/>
-					<TabPane fx:id="chartTabs" VBox.vgrow="ALWAYS">
-						<tabs>
-							<Tab fx:id="newTabButton" closable="false" text="+"/>
-						</tabs>
-					</TabPane>
+					<TextField fx:id="searchBar" style="-fx-font-size: 12pt;" promptText="Quick Action (Ctrl+Shift+P)" alignment="CENTER"/>
+					<StackPane VBox.vgrow="ALWAYS" alignment="TOP_CENTER">
+						<TabPane fx:id="chartTabs">
+							<tabs>
+								<Tab fx:id="newTabButton" closable="false" text="+"/>
+							</tabs>
+						</TabPane>
+						<VBox fx:id="actionList">
+							<padding>
+								<Insets left="10" right="10"/>
+							</padding>
+						</VBox>
+					</StackPane>
 				</VBox>
 				
 				<!-- RIGHT MENU -->
@@ -113,6 +118,10 @@
 									<Insets left="10" right="10" top="3"/>
 								</padding>
 							</Label>
+						</VBox>
+						<Region VBox.vgrow="ALWAYS"/>
+						<VBox alignment="CENTER">
+							<Button text="Refresh Company Data" alignment="CENTER" prefWidth="Infinity" onAction="#refreshCompanyData"/>
 						</VBox>
 					</VBox>
 					

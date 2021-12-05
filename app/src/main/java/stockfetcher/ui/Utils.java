@@ -1,11 +1,13 @@
 package stockfetcher.ui;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.util.Pair;
 import stockfetcher.api.CompanyData;
 import stockfetcher.api.EtfData;
 import stockfetcher.api.PriceData;
@@ -13,8 +15,14 @@ import stockfetcher.api.StockApi;
 import stockfetcher.db.StockDatabase;
 
 public class Utils {
-
-	public static final void downloadStockData(String... symbols) {
+	
+	public static final void downloadStockData(String symbol, boolean full) {
+		var download = new ArrayList<Pair<String, Boolean>>();
+		download.add(new Pair<>(symbol, full));
+		downloadStockData(download);
+	}
+	
+	public static final void downloadStockData(ArrayList<Pair<String, Boolean>> updates) {
 		final ProgressDialog progress = new ProgressDialog("Adding symbols...");
 		progress.show();
 		
@@ -22,14 +30,15 @@ public class Utils {
 		var task = new Task<Void>() {
 			public Void call() {
 				int processed = 0;
-				for(String symbol : symbols) {
+				for(var update : updates) {
+					String symbol = update.getKey();
 					
 					// Fetch price data
 					Platform.runLater(()->{
 						progress.setInfo("Downloading price data for " + symbol + "...");
 					});
-					PriceData[] data = StockApi.getStockPriceData(symbol, true);
-					updateProgress(processed + 1.0 / 3.0, symbols.length);
+					PriceData[] data = StockApi.getStockPriceData(symbol, update.getValue());
+					updateProgress(processed + 1.0 / 3.0, updates.size());
 					
 					// Check symbol was valid
 					if(data == null) {
@@ -39,7 +48,7 @@ public class Utils {
 									"There was an error downloading price data for " + symbol + ".\nPlease try again later.");
 							alert.show();
 						});
-						updateProgress(++processed, symbols.length);
+						updateProgress(++processed, updates.size());
 						continue;
 					}
 					
@@ -52,7 +61,7 @@ public class Utils {
 						));
 					});
 					StockDatabase.addPriceData(data);
-					updateProgress(processed + 2.0 / 3.0, symbols.length);
+					updateProgress(processed + 2.0 / 3.0, updates.size());
 					
 					// Check whether it was an etf or company, and add
 					// data as appropriate
@@ -80,7 +89,7 @@ public class Utils {
 									);
 									alert.show();
 								});
-								updateProgress(++processed, symbols.length);
+								updateProgress(++processed, updates.size());
 								continue;
 							}
 							
@@ -123,7 +132,7 @@ public class Utils {
 						// TODO: log this error/handle appropriately
 						e1.printStackTrace();
 					}
-					updateProgress(++processed, symbols.length);
+					updateProgress(++processed, updates.size());
 				}
 				
 				updateProgress(1, 1);

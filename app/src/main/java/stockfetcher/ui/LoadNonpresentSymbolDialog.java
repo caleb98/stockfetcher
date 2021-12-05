@@ -28,7 +28,7 @@ public class LoadNonpresentSymbolDialog extends Alert {
 	public boolean showAndDownload() {
 		Optional<ButtonType> result = showAndWait();
 		if(result.isPresent() && result.get() == YES) {
-			Utils.downloadStockData(symbol);
+			Utils.downloadStockData(symbol, true);
 			return true;
 		}
 		else {

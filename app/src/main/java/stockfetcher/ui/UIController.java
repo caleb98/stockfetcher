@@ -352,7 +352,12 @@ public class UIController {
 				}
 			}
 			
-			Utils.downloadStockData(symbolsList.toArray(new String[0]));
+			var downloads = new ArrayList<Pair<String, Boolean>>();
+			for(String symbol : symbolsList) {
+				downloads.add(new Pair<>(symbol, true));
+			}
+			
+			Utils.downloadStockData(downloads);
 		});
 	}
 
@@ -440,7 +445,11 @@ public class UIController {
 	
 	@FXML
 	private void updateStockData(Event e) {
-		//TODO: this method!
+		UpdateStockDataDialog dialog = new UpdateStockDataDialog();
+		var updates = dialog.showAndWait();
+		if(updates.isPresent()) {
+			Utils.downloadStockData(updates.get());
+		}
 	}
 	
 	@FXML
@@ -565,7 +574,7 @@ public class UIController {
 		@Override
 		public void execute(String input) {
 			input = input.trim().toUpperCase();
-			Utils.downloadStockData(input);
+			Utils.downloadStockData(input, true);
 		}
 		
 	}

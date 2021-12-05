@@ -1,6 +1,17 @@
 # Stockfetcher
 This application was developed for CS 543 - Advanced Databases. It's main functionality is downloading, visualizing, and making predictions on stock data. Data on stock prices, related companies, and ETFs is stored in a local database.
 
+## Downloading and Running
+This project is built using gradle, so to download and run all you need to do is clone the repository and use the provided gradle wrapper (or your local install) to build:
+
+```
+git clone git@github.com:caleb98/stockfetcher.git
+cd stockfetcher
+./gradlew run
+```
+
+Note that for the program to function correctly, you must either setup your local database using the expected settings, or modify the code with the proper settings for connecting to your database. More information on database setup can be found in the [Database Creation](#Database-Creation) section below.
+
 ## Database Design
 ![Databse Design](./db_design.svg)
 

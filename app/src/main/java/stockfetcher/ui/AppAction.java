@@ -8,6 +8,11 @@ public interface AppAction {
 	public String getActionName();
 	
 	/**
+	 * @return the text that should be displayed for this action in the action dropdown menu
+	 */
+	public String getDisplayText(String currentInput);
+	
+	/**
 	 * Returns true or false depending on whether the given current input
 	 * is applicable for calling this action.
 	 * @param currentInput current input in the search bar

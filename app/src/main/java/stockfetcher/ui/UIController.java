@@ -120,23 +120,7 @@ public class UIController {
 			
 			MenuItem predict = new MenuItem("Predict");
 			predict.setOnAction(e -> {
-				PredictionDialog dialog = new PredictionDialog();
-				Optional<Pair<LocalDate, LocalDate>> result = dialog.showAndWait();
-				if(result.isPresent() && result.get() != null) {
-					var dates = result.get();
-					var begin = LocalDateTime.of(dates.getKey(), LocalTime.NOON);
-					var end = LocalDateTime.of(dates.getValue(), LocalTime.NOON);
-					
-					if(java.time.Duration.between(begin, end).toDays() < 30) {
-						Alert alert = new Alert(AlertType.ERROR, "Please select an interval of at least 30 days.", ButtonType.OK);
-						alert.show();
-					}
-					else {
-						createNewTab();
-						ChartController controller = (ChartController) chartTabs.getSelectionModel().getSelectedItem().getProperties().get("chartController");
-						controller.predict(cell.getItem(), dates.getKey(), dates.getValue());
-					}
-				}
+				startPrediction(cell.getItem());
 			});
 			
 			ContextMenu menu = new ContextMenu(addToChart, addNewChart, predict);
@@ -213,6 +197,30 @@ public class UIController {
 		// Add available actions
 		availableActions.add(new SearchAction());
 		availableActions.add(new AddNewSymbolAction());
+		availableActions.add(new UpdateSymbolAction());
+		availableActions.add(new ManualUpdateAction());
+		availableActions.add(new AddNewSymbolsAction());
+		availableActions.add(new PredictSymbolAction());
+	}
+	
+	private void startPrediction(String symbol) {
+		PredictionDialog dialog = new PredictionDialog();
+		Optional<Pair<LocalDate, LocalDate>> result = dialog.showAndWait();
+		if(result.isPresent() && result.get() != null) {
+			var dates = result.get();
+			var begin = LocalDateTime.of(dates.getKey(), LocalTime.NOON);
+			var end = LocalDateTime.of(dates.getValue(), LocalTime.NOON);
+			
+			if(java.time.Duration.between(begin, end).toDays() < 30) {
+				Alert alert = new Alert(AlertType.ERROR, "Please select an interval of at least 30 days.", ButtonType.OK);
+				alert.show();
+			}
+			else {
+				createNewTab();
+				ChartController controller = (ChartController) chartTabs.getSelectionModel().getSelectedItem().getProperties().get("chartController");
+				controller.predict(symbol, dates.getKey(), dates.getValue());
+			}
+		}
 	}
 	
 	private void updateSymbolList() {
@@ -378,7 +386,7 @@ public class UIController {
 		var dropdown = new ArrayList<TextField>();
 		int pos = 0;
 		for(AppAction a : filteredActions) {
-			var tf = new TextField(a.getActionName() + ": " + newInput);
+			var tf = new TextField(a.getDisplayText(newInput));
 			tf.getStyleClass().add("available-action");
 			if(pos == filteredActions.size() - 1) {
 				tf.getStyleClass().add("available-action-bottom");
@@ -538,6 +546,11 @@ public class UIController {
 		}
 		
 		@Override
+		public String getDisplayText(String currentInput) {
+			return "Search Symbol: " + currentInput.trim().toUpperCase();
+		}
+		
+		@Override
 		public boolean isApplicable(String currentInput) {
 			return !currentInput.trim().contains(" ");
 		}
@@ -565,10 +578,16 @@ public class UIController {
 		public String getActionName() {
 			return "Track New Symbol";
 		}
+		
+		@Override
+		public String getDisplayText(String currentInput) {
+			return "Add Symbol: " + currentInput.trim().toUpperCase();
+		}
 
 		@Override
 		public boolean isApplicable(String currentInput) {
-			return !currentInput.trim().contains(" ");
+			currentInput = currentInput.trim().toUpperCase();
+			return !currentInput.contains(" ") && !StockDatabase.trackedSymbolsProperty().contains(currentInput);
 		}
 
 		@Override
@@ -579,31 +598,104 @@ public class UIController {
 		
 	}
 	
+	private class UpdateSymbolAction implements AppAction {
+
+		@Override
+		public String getActionName() {
+			return "Update";
+		}
+		
+		@Override
+		public String getDisplayText(String currentInput) {
+			return "Update: " + currentInput.trim().toUpperCase();
+		}
+
+		@Override
+		public boolean isApplicable(String currentInput) {
+			currentInput = currentInput.trim().toUpperCase();
+			return !currentInput.contains(" ") && StockDatabase.trackedSymbolsProperty().contains(currentInput);
+		}
+
+		@Override
+		public void execute(String input) {
+			input = input.trim().toUpperCase();
+			Utils.downloadStockData(input, false);
+		}
+		
+	}
+	
+	private class ManualUpdateAction implements AppAction {
+
+		@Override
+		public String getActionName() {
+			return "Manual Update";
+		}
+		
+		@Override
+		public String getDisplayText(String currentInput) {
+			return getActionName();
+		}
+
+		@Override
+		public boolean isApplicable(String currentInput) {
+			return getActionName().toLowerCase().contains(currentInput.trim().toLowerCase());
+		}
+
+		@Override
+		public void execute(String input) {
+			updateStockData(null);
+		}
+		
+	}
+	
+	private class AddNewSymbolsAction implements AppAction {
+
+		@Override
+		public String getActionName() {
+			return "Add New Symbols";
+		}
+
+		@Override
+		public String getDisplayText(String currentInput) {
+			return getActionName();
+		}
+
+		@Override
+		public boolean isApplicable(String currentInput) {
+			return getActionName().toLowerCase().contains(currentInput.trim().toLowerCase());
+		}
+
+		@Override
+		public void execute(String input) {
+			addNewStock(null);
+		}
+		
+	}
+	
+	private class PredictSymbolAction implements AppAction {
+
+		@Override
+		public String getActionName() {
+			return "Predict";
+		}
+
+		@Override
+		public String getDisplayText(String currentInput) {
+			return "Predict: " + currentInput.trim().toUpperCase();
+		}
+
+		@Override
+		public boolean isApplicable(String currentInput) {
+			currentInput = currentInput.trim().toUpperCase();
+			return !currentInput.contains(" ") && StockDatabase.trackedSymbolsProperty().contains(currentInput);
+		}
+
+		@Override
+		public void execute(String input) {
+			input = input.trim().toUpperCase();
+			startPrediction(input);
+		}
+		
+	}
+	
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

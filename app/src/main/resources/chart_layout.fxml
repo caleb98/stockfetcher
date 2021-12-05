@@ -32,11 +32,11 @@
 		<padding>
 			<Insets top="5" bottom="5" left="10" right="10"/>
 		</padding>
-		<Button text="Reset Dates" GridPane.columnIndex="0" onAction="#resetDateRange" maxWidth="Infinity"/>
+		<Button fx:id="resetDateButton" text="Reset Dates" GridPane.columnIndex="0" onAction="#resetDateRange" maxWidth="Infinity"/>
 		<Label text="From:" GridPane.columnIndex="1" GridPane.rowIndex="0" />
 		<DatePicker fx:id="startDatePicker" promptText="1/1/2000" GridPane.columnIndex="2" GridPane.rowIndex="0" maxWidth="Infinity" onAction="#updateDateRange"/>
 		<Label text="To:" GridPane.columnIndex="3" GridPane.rowIndex="0" alignment="BASELINE_RIGHT"/>
 		<DatePicker fx:id="endDatePicker" promptText="1/1/2020" GridPane.columnIndex="4" GridPane.rowIndex="0" maxWidth="Infinity" onAction="#updateDateRange"/>
-		<Button text="Edit Chart" GridPane.columnIndex="5" onAction="#changeSymbolsTracked" maxWidth="Infinity"/>
+		<Button fx:id="editChartButton" text="Edit Chart" GridPane.columnIndex="5" onAction="#changeSymbolsTracked" maxWidth="Infinity"/>
 	</GridPane>
 </VBox>

@@ -2,6 +2,9 @@ package stockfetcher.ui;
 
 import java.io.IOException;
 import java.text.NumberFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -115,7 +118,28 @@ public class UIController {
 				controller.setChartName(cell.getItem());
 			});
 			
-			ContextMenu menu = new ContextMenu(addToChart, addNewChart);
+			MenuItem predict = new MenuItem("Predict");
+			predict.setOnAction(e -> {
+				PredictionDialog dialog = new PredictionDialog();
+				Optional<Pair<LocalDate, LocalDate>> result = dialog.showAndWait();
+				if(result.isPresent() && result.get() != null) {
+					var dates = result.get();
+					var begin = LocalDateTime.of(dates.getKey(), LocalTime.NOON);
+					var end = LocalDateTime.of(dates.getValue(), LocalTime.NOON);
+					
+					if(java.time.Duration.between(begin, end).toDays() < 30) {
+						Alert alert = new Alert(AlertType.ERROR, "Please select an interval of at least 30 days.", ButtonType.OK);
+						alert.show();
+					}
+					else {
+						createNewTab();
+						ChartController controller = (ChartController) chartTabs.getSelectionModel().getSelectedItem().getProperties().get("chartController");
+						controller.predict(cell.getItem(), dates.getKey(), dates.getValue());
+					}
+				}
+			});
+			
+			ContextMenu menu = new ContextMenu(addToChart, addNewChart, predict);
 			
 			cell.textProperty().bind(cell.itemProperty());
 			cell.emptyProperty().addListener((obs, wasEmpty, isNowEmpty) -> {
@@ -138,15 +162,6 @@ public class UIController {
 		
 		holdingsBox.managedProperty().bind(holdingsBox.visibleProperty());
 		holdingsBox.visibleProperty().bind(isEtfSelected);
-		
-		isEtfSelected.addListener((obs, old, isEtf) -> {
-			if(isEtf) {
-				updateHoldingInfo();
-			}
-			else {
-				updateCompanyInfo();
-			}
-		});
 		
 		// Setup company data bindings
 		companyData.addListener((obs, oldValue, newValue)->{

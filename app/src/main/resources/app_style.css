@@ -32,3 +32,13 @@
 .tab-title-edit {
 	-fx-background-color: rgba(0, 0, 0, 0);
 }
+
+.std-line-inner {
+	-fx-stroke: green;
+	-fx-stroke-width: 1px;
+}
+
+.std-line-outer {
+	-fx-stroke: blue;
+	-fx-stroke-width: 1px;
+}

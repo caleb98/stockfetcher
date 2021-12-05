@@ -11,3 +11,7 @@ Database creation is done programmatically, and by default attempts to connect t
 
 ### API Keys for Company Info
 Company info is downloaded using the AlphaVantage API free tier. Normally, these api keys should be omitted from the repository and loaded from a file or obtained using environment variables. However, since this project is developed for a university course, these API keys are included in the repository for ease of use. The rate limit for API calls is 5 requests/min and 500 requests/day. A secondary API key is provided in the [StockApi class](app/src/main/java/stockfetcher/api/StockApi.java) and may be substituted if rate limits are hit using the default. However, for optimal use I suggest simply obtaining your own free API key from the [AlphaVantage website](https://www.alphavantage.co/).
+
+### Other Data Sources
+Stock price data is pulled from Yahoo finance as a CSV file which is directly parsed and inserted into the database. ETF overviews (name and relevant holdings, if available) are pulled from [Marketwatch](https://www.marketwatch.com/).
+

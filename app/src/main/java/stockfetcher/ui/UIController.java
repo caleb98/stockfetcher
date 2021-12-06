@@ -110,7 +110,18 @@ public class UIController {
 			MenuItem addToChart = new MenuItem("Add to Current Chart");
 			addToChart.setOnAction(e -> {
 				ChartController controller = (ChartController) chartTabs.getSelectionModel().getSelectedItem().getProperties().get("chartController");
-				controller.addChartSymbol(cell.getItem());
+				if(!controller.isLocked()) {
+					controller.addChartSymbol(cell.getItem());
+				}
+				else {
+					Alert alert = new Alert(AlertType.ERROR);
+					alert.setTitle("Error");
+					alert.setHeaderText("Chart Locked");
+					alert.setContentText("The current chart is being used for prediction and cannot be modified."
+							+ " If you would like to chart this symbol, please do so on a different chart or "
+							+ "create a new chart.");
+					alert.show();
+				}
 			});
 			
 			MenuItem addNewChart = new MenuItem("Add to New Chart");

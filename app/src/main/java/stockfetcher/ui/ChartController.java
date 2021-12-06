@@ -42,6 +42,8 @@ public class ChartController {
 	@FXML private Button resetDateButton;
 	@FXML private Button editChartButton;
 	
+	private boolean isLocked = false;
+	
 	private HashSet<String> symbolsTracked = new HashSet<>();
 	
 	public void initialize() {		
@@ -280,7 +282,12 @@ public class ChartController {
 		endDatePicker.setDisable(true);
 		resetDateButton.setDisable(true);
 		editChartButton.setDisable(true);
-		
+	
+		isLocked = true;
+	}
+	
+	public boolean isLocked() {
+		return isLocked;
 	}
 	
 	private Task<Void> refreshTrackedSymbols() {

@@ -1,6 +1,5 @@
 package stockfetcher;
 
-
 import java.sql.SQLException;
 
 import org.slf4j.Logger;

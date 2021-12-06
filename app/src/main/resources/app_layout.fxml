@@ -49,8 +49,7 @@
     				<items>
     					<RadioMenuItem text="Dark Mode" onAction="#toggleDarkMode"/>
     					<SeparatorMenuItem/>
-    					<MenuItem text="Manual"/>
-    					<MenuItem text="About"/>
+    					<MenuItem text="Manual" onAction="#openManual"/>
     				</items>
     			</Menu>
     		</menus>

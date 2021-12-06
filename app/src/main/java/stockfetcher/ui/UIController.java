@@ -1,6 +1,9 @@
 package stockfetcher.ui;
 
+import java.awt.Desktop;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -219,6 +222,18 @@ public class UIController {
 				createNewTab();
 				ChartController controller = (ChartController) chartTabs.getSelectionModel().getSelectedItem().getProperties().get("chartController");
 				controller.predict(symbol, dates.getKey(), dates.getValue());
+			}
+		}
+	}
+	
+	@FXML
+	private void openManual(Event e) {
+		if(Desktop.isDesktopSupported()) {
+			try {
+				Desktop.getDesktop().browse(new URI("https://github.com/caleb98/stockfetcher#stockfetcher"));
+			} catch (IOException | URISyntaxException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
 			}
 		}
 	}
